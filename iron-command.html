@@ -1,0 +1,2314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Iron Command</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Oxanium:wght@300;400;500;600;700&display=swap');
+  :root {
+    --bg-dark:#0a0c10;--bg-panel:#11141b;--bg-card:#181c26;--bg-card-hover:#1e2330;
+    --border-color:#2a3040;--border-glow:#3a8bfd33;
+    --accent-blue:#3a8bfd;--accent-blue-dim:#2a6bcd;--accent-orange:#f59e0b;
+    --accent-red:#ef4444;--accent-green:#22c55e;--accent-purple:#a855f7;--accent-cyan:#06b6d4;
+    --text-primary:#e8ecf4;--text-secondary:#8892a8;--text-dim:#555e72;
+    --gold-color:#fbbf24;--food-color:#4ade80;--iron-color:#94a3b8;--xp-color:#c084fc;--gem-color:#a78bfa;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{font-family:'Rajdhani',sans-serif;background:var(--bg-dark);color:var(--text-primary);overflow:hidden;height:100vh;width:100vw;user-select:none}
+
+  #resource-bar{position:fixed;top:0;left:0;right:0;z-index:100;background:linear-gradient(180deg,#0d1017 0%,#0d1017ee 80%,transparent 100%);padding:6px 8px 16px;display:flex;justify-content:center;gap:4px;flex-wrap:wrap}
+  .res-item{display:flex;align-items:center;gap:4px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:6px;padding:3px 8px;min-width:72px;font-family:'Oxanium',sans-serif;font-size:11px;font-weight:600}
+  .res-icon{font-size:13px}.res-value{color:var(--text-primary)}.res-rate{color:var(--text-secondary);font-size:8px;font-weight:400}
+  .res-gold .res-icon{color:var(--gold-color)}.res-food .res-icon{color:var(--food-color)}.res-iron .res-icon{color:var(--iron-color)}
+  .res-xp{cursor:pointer}.res-xp .res-icon{color:var(--xp-color)}
+  .res-troops .res-icon{color:var(--accent-red)}
+
+  #title-bar{position:fixed;top:44px;left:0;right:0;z-index:90;text-align:center;font-family:'Oxanium',sans-serif;pointer-events:none}
+  #title-bar .base-name{font-size:10px;font-weight:600;color:var(--text-secondary);letter-spacing:2px;text-transform:uppercase}
+  #title-bar .power-display{font-size:9px;color:var(--accent-blue);font-weight:500}
+
+  #base-container{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 50%,#131824 0%,#0a0c10 70%),repeating-linear-gradient(0deg,transparent,transparent 39px,#1a1f2e22 39px,#1a1f2e22 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,#1a1f2e22 39px,#1a1f2e22 40px);padding-top:60px;padding-bottom:52px}
+  #base-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:8px;max-width:360px;width:92%}
+  .plot{aspect-ratio:1;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;transition:all .2s;min-height:64px}
+  .plot-empty{border:2px dashed var(--border-color);background:var(--bg-card);opacity:.5}
+  .plot-empty:hover,.plot-empty:active{opacity:.8;border-color:var(--accent-blue)}
+  .plot-empty::after{content:'+';font-size:26px;color:var(--text-dim);font-weight:300}
+  .plot-built{border:2px solid var(--border-color);background:linear-gradient(135deg,var(--bg-card) 0%,#1a2030 100%);box-shadow:0 2px 10px #00000044}
+  .plot-built:hover,.plot-built:active{border-color:var(--accent-blue);box-shadow:0 2px 14px var(--border-glow);transform:translateY(-1px)}
+  .plot-built.constructing{border-color:var(--accent-orange);animation:pulse-border 2s infinite}
+  @keyframes pulse-border{0%,100%{border-color:var(--accent-orange);box-shadow:0 0 8px #f59e0b33}50%{border-color:#f59e0b88;box-shadow:0 0 14px #f59e0b44}}
+  .plot-built.researching{border-color:var(--accent-purple);animation:pulse-res 2s infinite}
+  @keyframes pulse-res{0%,100%{border-color:var(--accent-purple);box-shadow:0 0 8px #a855f733}50%{border-color:#a855f788;box-shadow:0 0 14px #a855f744}}
+  .plot-built.training{border-color:var(--accent-red);animation:pulse-train 2s infinite}
+  @keyframes pulse-train{0%,100%{border-color:var(--accent-red);box-shadow:0 0 8px #ef444433}50%{border-color:#ef444488;box-shadow:0 0 14px #ef444444}}
+  .plot-icon{font-size:22px;line-height:1}.plot-name{font-size:7px;font-weight:600;color:var(--text-secondary);margin-top:1px;text-align:center;letter-spacing:.4px;text-transform:uppercase;line-height:1.1}
+  .plot-level{position:absolute;top:2px;right:4px;font-family:'Oxanium',sans-serif;font-size:8px;font-weight:700;color:var(--accent-blue);background:#3a8bfd22;border-radius:3px;padding:1px 3px}
+  .plot-timer{position:absolute;bottom:1px;left:50%;transform:translateX(-50%);font-family:'Oxanium',sans-serif;font-size:8px;font-weight:600;color:var(--accent-orange);white-space:nowrap}
+  .plot-timer.res-t{color:var(--accent-purple)}.plot-timer.train-t{color:var(--accent-red)}
+  .plot-hq{grid-column:2/4;grid-row:2/4;border-radius:14px}.plot-hq .plot-icon{font-size:36px}.plot-hq .plot-name{font-size:9px}.plot-hq .plot-level{font-size:10px;padding:2px 5px}
+
+  #action-bar{position:fixed;bottom:0;left:0;right:0;z-index:100;background:linear-gradient(0deg,#0d1017 0%,#0d1017ee 85%,transparent 100%);padding:12px 4px 8px;display:flex;justify-content:center;gap:3px}
+  .action-btn{background:var(--bg-card);border:1px solid var(--border-color);border-radius:8px;padding:5px 7px;color:var(--text-primary);font-family:'Rajdhani',sans-serif;font-size:9px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;transition:all .15s;text-transform:uppercase;letter-spacing:.2px;min-width:44px;position:relative}
+  .action-btn:hover,.action-btn:active{background:var(--bg-card-hover);border-color:var(--accent-blue)}
+  .action-btn .btn-icon{font-size:16px}
+  .notif-dot{position:absolute;top:2px;right:2px;width:7px;height:7px;background:var(--accent-red);border-radius:50%;display:none}
+  .notif-dot.show{display:block}
+
+  #modal-overlay{position:fixed;inset:0;z-index:600;background:#000000aa;backdrop-filter:blur(4px);display:none;align-items:flex-end;justify-content:center}
+  #modal-overlay.active{display:flex}
+  #modal-panel{background:var(--bg-panel);border:1px solid var(--border-color);border-radius:16px 16px 0 0;width:100%;max-width:480px;max-height:82vh;overflow-y:auto;padding:14px 12px 18px;animation:slideUp .25s ease}
+  @keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+  .modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .modal-title{font-family:'Oxanium',sans-serif;font-size:17px;font-weight:700;letter-spacing:.5px}
+  .modal-close{background:var(--bg-card);border:1px solid var(--border-color);border-radius:8px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;color:var(--text-secondary);transition:all .15s}
+  .modal-close:hover{background:var(--bg-card-hover);color:var(--text-primary)}
+  .modal-section{background:var(--bg-card);border:1px solid var(--border-color);border-radius:10px;padding:10px;margin-bottom:8px}
+  .modal-section-title{font-size:9px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+  .stat-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:12px}
+  .stat-label{color:var(--text-secondary)}.stat-value{font-family:'Oxanium',sans-serif;font-weight:600}
+  .cost-row{display:flex;gap:8px;flex-wrap:wrap}
+  .cost-item{display:flex;align-items:center;gap:3px;font-family:'Oxanium',sans-serif;font-size:11px;font-weight:600}
+  .cost-item.affordable{color:var(--accent-green)}.cost-item.expensive{color:var(--accent-red)}
+
+  .btn-primary{width:100%;padding:10px;background:linear-gradient(135deg,var(--accent-blue) 0%,var(--accent-blue-dim) 100%);border:none;border-radius:10px;color:#fff;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1px;cursor:pointer;transition:all .15s}
+  .btn-primary:hover{filter:brightness(1.1);transform:translateY(-1px)}
+  .btn-primary:disabled{background:var(--bg-card);color:var(--text-dim);cursor:not-allowed;transform:none;filter:none;border:1px solid var(--border-color)}
+  .btn-purple{width:100%;padding:10px;background:linear-gradient(135deg,var(--accent-purple) 0%,#7c3aed 100%);border:none;border-radius:10px;color:#fff;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1px;cursor:pointer;transition:all .15s}
+  .btn-purple:hover{filter:brightness(1.1)}.btn-purple:disabled{background:var(--bg-card);color:var(--text-dim);cursor:not-allowed;border:1px solid var(--border-color)}
+  .btn-red{width:100%;padding:10px;background:linear-gradient(135deg,var(--accent-red) 0%,#dc2626 100%);border:none;border-radius:10px;color:#fff;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1px;cursor:pointer;transition:all .15s}
+  .btn-red:hover{filter:brightness(1.1)}.btn-red:disabled{background:var(--bg-card);color:var(--text-dim);cursor:not-allowed;border:1px solid var(--border-color)}
+  .btn-danger{width:100%;padding:8px;margin-top:6px;background:transparent;border:1px solid var(--accent-red);border-radius:10px;color:var(--accent-red);font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;cursor:pointer;transition:all .15s}
+  .btn-danger:hover{background:#ef444422}
+  .btn-sm{padding:7px 12px;font-size:12px;width:auto;display:inline-block;margin:2px}
+
+  .build-option{display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:10px;padding:9px;margin-bottom:5px;cursor:pointer;transition:all .15s}
+  .build-option:hover,.build-option:active{border-color:var(--accent-blue);background:var(--bg-card-hover)}
+  .build-option-icon{font-size:26px;min-width:34px;text-align:center}.build-option-info{flex:1}
+  .build-option-name{font-weight:700;font-size:13px}.build-option-desc{font-size:10px;color:var(--text-secondary);margin-top:1px}
+  .build-option-cost{font-family:'Oxanium',sans-serif;font-size:9px;font-weight:500;color:var(--text-dim);margin-top:2px;display:flex;gap:6px}
+
+  .queue-item{display:flex;align-items:center;gap:8px;background:var(--bg-card);border:1px solid var(--accent-orange);border-radius:10px;padding:7px 9px;margin-bottom:5px}
+  .queue-item.rq{border-color:var(--accent-purple)}.queue-item.tq{border-color:var(--accent-red)}
+  .queue-icon{font-size:20px}.queue-info{flex:1}.queue-name{font-weight:600;font-size:12px}
+  .queue-time{font-family:'Oxanium',sans-serif;font-size:11px;font-weight:600;color:var(--accent-orange)}
+  .queue-time.rt{color:var(--accent-purple)}.queue-time.tt{color:var(--accent-red)}
+  .queue-progress{width:100%;height:4px;background:var(--bg-dark);border-radius:2px;margin-top:4px;overflow:hidden}
+  .queue-progress-fill{height:100%;background:linear-gradient(90deg,var(--accent-orange),var(--accent-blue));border-radius:2px;transition:width 1s linear}
+  .queue-progress-fill.rf{background:linear-gradient(90deg,var(--accent-purple),var(--accent-cyan))}
+  .queue-progress-fill.tf{background:linear-gradient(90deg,var(--accent-red),var(--accent-orange))}
+
+  .tech-branch-tabs{display:flex;gap:4px;margin-bottom:8px}
+  .tech-tab{flex:1;padding:7px 4px;text-align:center;background:var(--bg-card);border:1px solid var(--border-color);border-radius:8px;cursor:pointer;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;transition:all .15s;color:var(--text-secondary)}
+  .tech-tab.active{border-color:var(--accent-purple);color:var(--accent-purple);background:#a855f715}.tech-tab:hover{border-color:var(--accent-purple)}
+  .tech-node{display:flex;align-items:center;gap:8px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:10px;padding:8px;margin-bottom:5px;cursor:pointer;transition:all .15s;position:relative}
+  .tech-node:hover{border-color:var(--accent-purple);background:var(--bg-card-hover)}
+  .tech-node.completed{border-color:var(--accent-green);opacity:.7}.tech-node.researching{border-color:var(--accent-purple);animation:pulse-res 2s infinite}
+  .tech-node.locked{opacity:.35;cursor:not-allowed}
+  .tech-node-icon{font-size:24px;min-width:30px;text-align:center}.tech-node-info{flex:1}
+  .tech-node-name{font-weight:700;font-size:12px}.tech-node-desc{font-size:9px;color:var(--text-secondary);margin-top:1px}
+  .tech-node-badge{font-family:'Oxanium',sans-serif;font-size:8px;font-weight:700;padding:2px 5px;border-radius:4px;white-space:nowrap}
+  .badge-done{background:#22c55e22;color:var(--accent-green)}.badge-active{background:#a855f722;color:var(--accent-purple)}.badge-locked{background:#55566622;color:var(--text-dim)}
+
+  .quest-item{background:var(--bg-card);border:1px solid var(--border-color);border-radius:10px;padding:9px;margin-bottom:5px}
+  .quest-item.completable{border-color:var(--accent-green)}
+  .quest-header{display:flex;justify-content:space-between;align-items:center}
+  .quest-name{font-weight:700;font-size:12px}.quest-reward{font-family:'Oxanium',sans-serif;font-size:10px;font-weight:600;color:var(--gold-color)}
+  .quest-desc{font-size:10px;color:var(--text-secondary);margin-top:1px}
+  .quest-progress-bar{width:100%;height:4px;background:var(--bg-dark);border-radius:3px;margin-top:5px;overflow:hidden}
+  .quest-progress-fill{height:100%;background:linear-gradient(90deg,var(--accent-blue),var(--accent-green));border-radius:3px;transition:width .3s}
+  .quest-progress-text{font-family:'Oxanium',sans-serif;font-size:9px;color:var(--text-secondary);margin-top:2px;text-align:right}
+  .quest-claim-btn{margin-top:5px;width:100%;padding:6px;background:linear-gradient(135deg,var(--accent-green) 0%,#16a34a 100%);border:none;border-radius:8px;color:#fff;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;cursor:pointer}
+
+  .commander-avatar{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--accent-blue),var(--accent-purple));display:flex;align-items:center;justify-content:center;font-size:28px;border:3px solid var(--border-color);margin:0 auto 8px}
+  .xp-bar-container{width:100%;height:7px;background:var(--bg-dark);border-radius:4px;overflow:hidden;margin-top:5px}
+  .xp-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent-purple),var(--xp-color));border-radius:4px;transition:width .5s}
+
+  .daily-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+  .daily-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg-dark);border:1px solid var(--border-color);border-radius:6px;font-size:9px;gap:1px}
+  .daily-day.claimed{background:#22c55e15;border-color:var(--accent-green)}.daily-day.today{border-color:var(--accent-orange);background:#f59e0b15;cursor:pointer}
+  .daily-day.future{opacity:.3}.daily-day-num{font-family:'Oxanium',sans-serif;font-weight:700;font-size:10px}.daily-day-icon{font-size:14px}
+
+  /* ─── STAGE 3: ARMY & COMBAT ─── */
+  .troop-card{display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:10px;padding:9px;margin-bottom:5px;cursor:pointer;transition:all .15s}
+  .troop-card:hover{border-color:var(--accent-red);background:var(--bg-card-hover)}
+  .troop-card-icon{font-size:28px;min-width:36px;text-align:center}
+  .troop-card-info{flex:1}.troop-card-name{font-weight:700;font-size:13px}
+  .troop-card-stats{font-family:'Oxanium',sans-serif;font-size:9px;color:var(--text-secondary);margin-top:2px;display:flex;gap:8px}
+  .troop-card-count{font-family:'Oxanium',sans-serif;font-size:14px;font-weight:700;color:var(--accent-red)}
+
+  .campaign-node{display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:10px;padding:10px;margin-bottom:5px;cursor:pointer;transition:all .15s}
+  .campaign-node:hover{border-color:var(--accent-red);background:var(--bg-card-hover)}
+  .campaign-node.cleared{border-color:var(--accent-green);opacity:.7}
+  .campaign-node.locked{opacity:.3;cursor:not-allowed}
+  .campaign-node-num{font-family:'Oxanium',sans-serif;font-size:18px;font-weight:700;min-width:30px;text-align:center;color:var(--accent-red)}
+  .campaign-node-info{flex:1}.campaign-node-name{font-weight:700;font-size:13px}
+  .campaign-node-desc{font-size:10px;color:var(--text-secondary)}
+  .campaign-node-badge{font-family:'Oxanium',sans-serif;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px}
+
+  .battle-log{background:var(--bg-dark);border:1px solid var(--border-color);border-radius:8px;padding:8px;margin:8px 0;font-family:'Oxanium',sans-serif;font-size:11px;color:var(--text-secondary);line-height:1.6;max-height:200px;overflow-y:auto}
+  .battle-log .log-win{color:var(--accent-green)}.battle-log .log-lose{color:var(--accent-red)}
+  .battle-log .log-dmg{color:var(--accent-orange)}.battle-log .log-info{color:var(--accent-cyan)}
+
+  .hospital-item{display:flex;align-items:center;gap:8px;background:var(--bg-card);border:1px solid var(--accent-green);border-radius:10px;padding:8px;margin-bottom:5px}
+  .hospital-item .troop-card-icon{font-size:22px;min-width:28px}
+
+  .tab-row{display:flex;gap:4px;margin-bottom:8px}
+  .tab-btn{flex:1;padding:7px;text-align:center;background:var(--bg-card);border:1px solid var(--border-color);border-radius:8px;cursor:pointer;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-secondary);transition:all .15s}
+  .tab-btn.active{border-color:var(--accent-red);color:var(--accent-red);background:#ef444415}
+  .tab-btn:hover{border-color:var(--accent-red)}
+
+  /* ─── STAGE 4: WORLD MAP ─── */
+  #world-map-screen{position:fixed;inset:0;z-index:150;background:var(--bg-dark);display:none;height:100vh;height:100dvh}
+  #world-map-screen.active{display:flex;flex-direction:column}
+  #map-topbar{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--bg-panel);border-bottom:1px solid var(--border-color);z-index:10}
+  #map-topbar .map-title{font-family:'Oxanium',sans-serif;font-size:13px;font-weight:700}
+  #map-topbar .map-coords{font-family:'Oxanium',sans-serif;font-size:10px;color:var(--text-secondary)}
+  .map-close-btn{background:var(--bg-card);border:1px solid var(--border-color);border-radius:8px;padding:5px 12px;color:var(--text-primary);font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;cursor:pointer;text-transform:uppercase}
+  .map-close-btn:hover{border-color:var(--accent-blue)}
+  #map-canvas{flex:1;cursor:grab;touch-action:none}
+  #map-canvas:active{cursor:grabbing}
+  #map-bottombar{display:flex;gap:4px;padding:6px 8px;background:var(--bg-panel);border-top:1px solid var(--border-color);justify-content:center;flex-wrap:wrap}
+  .map-btn{background:var(--bg-card);border:1px solid var(--border-color);border-radius:8px;padding:5px 10px;color:var(--text-primary);font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:700;cursor:pointer;text-transform:uppercase;display:flex;align-items:center;gap:3px}
+  .map-btn:hover{border-color:var(--accent-blue)}.map-btn.active{border-color:var(--accent-green);color:var(--accent-green)}
+  .march-item{display:flex;align-items:center;gap:8px;background:var(--bg-card);border:1px solid var(--accent-cyan);border-radius:10px;padding:8px;margin-bottom:5px}
+  .march-item .march-icon{font-size:18px}.march-item .march-info{flex:1;font-size:11px}
+  .march-item .march-time{font-family:'Oxanium',sans-serif;font-size:12px;font-weight:700;color:var(--accent-cyan)}
+
+  #toast-container{position:fixed;top:62px;left:50%;transform:translateX(-50%);z-index:700;display:flex;flex-direction:column;gap:3px;align-items:center;pointer-events:none}
+  .toast{background:var(--bg-card);border:1px solid var(--accent-green);border-radius:8px;padding:5px 12px;font-size:11px;font-weight:600;color:var(--accent-green);animation:toastIn .3s ease,toastOut .3s ease 2.2s forwards;box-shadow:0 4px 16px #00000066}
+  .toast.toast-purple{border-color:var(--accent-purple);color:var(--accent-purple)}
+  .toast.toast-gold{border-color:var(--gold-color);color:var(--gold-color)}
+  .toast.toast-red{border-color:var(--accent-red);color:var(--accent-red)}
+  @keyframes toastIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes toastOut{from{opacity:1}to{opacity:0;transform:translateY(-10px)}}
+  /* ─── MAIN MENU ─── */
+  #main-menu{position:fixed;inset:0;z-index:500;background:var(--bg-dark);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:500}
+  #main-menu.hidden{display:none}
+  .menu-logo{font-family:'Oxanium',sans-serif;font-size:32px;font-weight:700;letter-spacing:3px;text-transform:uppercase;background:linear-gradient(135deg,var(--accent-blue),var(--accent-red));-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-shadow:none}
+  .menu-sub{font-size:11px;color:var(--text-secondary);letter-spacing:4px;text-transform:uppercase;margin-top:-8px}
+  .menu-btn{width:220px;padding:14px;background:var(--bg-card);border:2px solid var(--border-color);border-radius:12px;color:var(--text-primary);font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;transition:all .2s;text-align:center}
+  .menu-btn:hover{border-color:var(--accent-blue);background:var(--bg-card-hover);transform:translateY(-2px)}
+  .menu-btn.primary{border-color:var(--accent-blue);background:linear-gradient(135deg,#3a8bfd22,#3a8bfd11)}
+  .menu-btn.danger{border-color:var(--accent-red);color:var(--accent-red)}
+  .menu-version{font-family:'Oxanium',sans-serif;font-size:9px;color:var(--text-dim);margin-top:12px}
+  .slot-picker{width:260px;display:flex;flex-direction:column;gap:6px}
+  .slot-card{background:var(--bg-card);border:2px solid var(--border-color);border-radius:12px;padding:12px;cursor:pointer;transition:all .2s;position:relative}
+  .slot-card:hover{border-color:var(--accent-blue);transform:translateY(-1px)}
+  .slot-card.empty{opacity:.5;text-align:center;padding:16px}
+  .slot-card .slot-label{font-family:'Oxanium',sans-serif;font-size:9px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px}
+  .slot-card .slot-info{display:flex;justify-content:space-between;align-items:center;margin-top:4px}
+  .slot-card .slot-stats{font-family:'Oxanium',sans-serif;font-size:10px;color:var(--text-secondary);display:flex;gap:8px;margin-top:3px}
+  .slot-card .slot-hq{font-family:'Oxanium',sans-serif;font-size:18px;font-weight:700;color:var(--accent-blue)}
+  .slot-card .slot-power{font-size:11px;color:var(--accent-blue)}
+  .slot-delete{position:absolute;top:6px;right:8px;background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:12px;padding:2px 4px}
+  .slot-delete:hover{color:var(--accent-red)}
+  .export-area{width:100%;height:60px;background:var(--bg-dark);border:1px solid var(--border-color);border-radius:8px;padding:8px;color:var(--text-secondary);font-family:'Oxanium',sans-serif;font-size:9px;resize:none}
+  .achievement-card{display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:10px;padding:8px;margin-bottom:4px}
+  .achievement-card.unlocked{border-color:var(--gold-color);background:#fbbf2408}
+  .achievement-card.locked{opacity:.4}
+  .ach-icon{font-size:24px;min-width:32px;text-align:center}
+  .ach-info{flex:1}.ach-name{font-weight:700;font-size:12px}.ach-desc{font-size:10px;color:var(--text-secondary)}
+
+  /* ─── STAGE 6 ─── */
+  .res-gems{border-color:var(--gem-color)33}
+  .speed-btn{background:linear-gradient(135deg,#a78bfa22,#a78bfa11);border:1px solid var(--gem-color);border-radius:6px;padding:3px 8px;color:var(--gem-color);font-family:'Oxanium',sans-serif;font-size:9px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px}
+  .speed-btn:hover{background:#a78bfa33}.speed-btn:disabled{opacity:.3;cursor:default}
+  .hero-card{display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:10px;padding:9px;margin-bottom:5px;cursor:pointer;transition:all .15s}
+  .hero-card:hover{border-color:var(--accent-purple)}.hero-card.equipped{border-color:var(--accent-green);background:#22c55e08}
+  .hero-card.locked{opacity:.35;cursor:default}.hero-icon{font-size:28px;min-width:36px;text-align:center}
+  .hero-info{flex:1}.hero-name{font-weight:700;font-size:13px}.hero-rarity{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+  .hero-bonus{font-family:'Oxanium',sans-serif;font-size:9px;color:var(--text-secondary);margin-top:2px}
+  .rarity-common{color:#94a3b8}.rarity-rare{color:#3a8bfd}.rarity-epic{color:#a855f7}.rarity-legendary{color:#fbbf24}
+  .event-banner{background:linear-gradient(135deg,#f59e0b11,#ef444411);border:2px solid var(--accent-orange);border-radius:12px;padding:12px;margin-bottom:6px;text-align:center;position:relative;overflow:hidden}
+  .event-banner .event-title{font-family:'Oxanium',sans-serif;font-size:14px;font-weight:700;color:var(--accent-orange)}
+  .event-banner .event-timer{font-family:'Oxanium',sans-serif;font-size:11px;color:var(--accent-red);margin-top:2px}
+  .event-progress{width:100%;height:8px;background:var(--bg-dark);border-radius:4px;margin-top:6px;overflow:hidden}
+  .event-progress-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent-orange),var(--accent-red));transition:width .3s}
+  .alliance-banner{background:var(--bg-card);border:2px solid var(--accent-cyan);border-radius:12px;padding:16px;text-align:center}
+  .alliance-banner .a-icon{font-size:36px}.alliance-banner .a-name{font-family:'Oxanium',sans-serif;font-size:16px;font-weight:700;margin-top:4px}
+  #particles-canvas{position:fixed;inset:0;z-index:95;pointer-events:none}
+  #tutorial-overlay{position:fixed;inset:0;z-index:800;background:#000000cc;display:none;align-items:center;justify-content:center}
+  #tutorial-overlay.active{display:flex}
+  .tut-box{background:var(--bg-panel);border:2px solid var(--accent-blue);border-radius:14px;padding:20px;max-width:320px;text-align:center}
+  .tut-box .tut-icon{font-size:36px;margin-bottom:8px}.tut-box .tut-title{font-family:'Oxanium',sans-serif;font-size:16px;font-weight:700;margin-bottom:6px}
+  .tut-box .tut-text{font-size:12px;color:var(--text-secondary);line-height:1.5;margin-bottom:12px}
+  .tut-btn{background:linear-gradient(135deg,var(--accent-blue),var(--accent-blue-dim));border:none;border-radius:8px;padding:10px 24px;color:white;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:1px}
+
+  /* ─── FAN MENUS ─── */
+  .fan-group{position:relative}
+  .fan-trigger{background:var(--bg-card);border:1px solid var(--border-color);border-radius:10px;padding:6px 10px;color:var(--text-primary);font-family:'Rajdhani',sans-serif;font-size:9px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;text-transform:uppercase;letter-spacing:.2px;min-width:48px;position:relative;transition:all .15s;-webkit-tap-highlight-color:transparent}
+  .fan-trigger:hover,.fan-trigger.open{background:var(--bg-card-hover);border-color:var(--accent-blue)}
+  .fan-trigger .btn-icon{font-size:16px}
+  .fan-trigger .notif-dot{position:absolute;top:2px;right:2px;width:7px;height:7px;background:var(--accent-red);border-radius:50%;display:none}
+  .fan-trigger .notif-dot.show{display:block}
+  .fan-popup{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);display:none;flex-direction:column;gap:3px;align-items:center;z-index:110;animation:fanIn .15s ease}
+  .fan-popup.open{display:flex}
+  @keyframes fanIn{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+  .fan-item{background:var(--bg-panel);border:1px solid var(--border-color);border-radius:8px;padding:5px 12px;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:11px;font-weight:600;transition:all .12s;min-width:110px;box-shadow:0 4px 16px #00000066}
+  .fan-item:hover{border-color:var(--accent-blue);background:var(--bg-card-hover)}
+  .fan-item .fi-icon{font-size:16px;min-width:20px;text-align:center}
+  .fan-item .fi-dot{width:6px;height:6px;background:var(--accent-red);border-radius:50%;display:none;margin-left:auto}
+  .fan-item .fi-dot.show{display:block}
+  .fan-item.locked{opacity:.4;cursor:default}
+  .fan-overlay{position:fixed;inset:0;z-index:99;display:none}
+  .fan-overlay.open{display:block}
+
+  /* ─── SETTINGS ─── */
+  .settings-section{margin-bottom:12px}
+  .settings-section-title{font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+  .settings-row{display:flex;align-items:center;justify-content:space-between;padding:8px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:8px;margin-bottom:4px;font-size:12px}
+  .settings-row label{color:var(--text-secondary);font-size:11px}
+  .reset-input{width:100%;padding:8px;background:var(--bg-dark);border:1px solid var(--border-color);border-radius:8px;color:var(--text-primary);font-family:'Oxanium',sans-serif;font-size:13px;text-align:center;margin:6px 0}
+
+  ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border-color);border-radius:2px}
+  @media(min-width:600px){#base-grid{max-width:400px;gap:8px}.res-item{min-width:85px;font-size:12px}.plot{min-height:76px}}
+</style>
+</head>
+<body>
+<!-- MAIN MENU -->
+<div id="main-menu">
+  <div style="font-size:48px;margin-bottom:-4px">⚔️</div>
+  <div class="menu-logo">Iron Command</div>
+  <div class="menu-sub">Strategic Warfare</div>
+  <div style="height:16px"></div>
+  <div class="slot-picker" id="slot-picker"></div>
+  <div style="height:6px"></div>
+  <button class="menu-btn" onclick="showSettingsFromMenu()">⚙️ Settings</button>
+  <div class="menu-version">v0.6.0 — Stage 6</div>
+</div>
+
+<div id="game-wrapper" style="display:none">
+<div id="resource-bar">
+  <div class="res-item res-gold"><span class="res-icon">💰</span><div><div class="res-value" id="res-gold">0</div><div class="res-rate" id="rate-gold">+0/s</div></div></div>
+  <div class="res-item res-food"><span class="res-icon">🌾</span><div><div class="res-value" id="res-food">0</div><div class="res-rate" id="rate-food">+0/s</div></div></div>
+  <div class="res-item res-iron"><span class="res-icon">⛏️</span><div><div class="res-value" id="res-iron">0</div><div class="res-rate" id="rate-iron">+0/s</div></div></div>
+  <div class="res-item res-troops" onclick="showArmy()"><span class="res-icon">⚔️</span><div><div class="res-value" id="res-troops">0</div><div class="res-rate" id="rate-troops">Troops</div></div></div>
+  <div class="res-item res-xp" onclick="sfx('tap');showCommander()"><span class="res-icon">⭐</span><div><div class="res-value" id="res-xp">Lv.1</div><div class="res-rate" id="rate-xp">Cmdr</div></div></div>
+  <div class="res-item res-gems" onclick="sfx('tap');showGemShop()"><span class="res-icon">💎</span><div><div class="res-value" id="res-gems">0</div><div class="res-rate" id="rate-gems">Gems</div></div></div>
+</div>
+<div id="title-bar"><div class="base-name">⚔ Iron Command ⚔</div><div class="power-display">⚡ Power: <span id="power-value">0</span></div></div>
+<div id="base-container"><div id="base-grid"></div></div>
+
+<!-- FAN OVERLAY (closes fans when tapping outside) -->
+<div class="fan-overlay" id="fan-overlay" onclick="closeAllFans()"></div>
+
+<div id="action-bar">
+  <!-- Queue (standalone) -->
+  <div class="action-btn" onclick="sfx('tap');showQueue()" style="border-radius:10px;padding:6px 10px;min-width:48px"><span class="btn-icon">🔨</span>Queue<span class="notif-dot" id="queue-dot"></span></div>
+
+  <!-- Military fan -->
+  <div class="fan-group" id="fan-military">
+    <div class="fan-popup" id="fanpop-military">
+      <div class="fan-item" onclick="cf();showArmy()"><span class="fi-icon">⚔️</span>Army<span class="fi-dot" id="fd-army"></span></div>
+      <div class="fan-item" onclick="cf();showHeroes()"><span class="fi-icon">🦸</span>Heroes</div>
+      <div class="fan-item" onclick="cf();showResearch()"><span class="fi-icon">🔬</span>Research<span class="fi-dot" id="fd-lab"></span></div>
+      <div class="fan-item" onclick="cf();showCampaign()"><span class="fi-icon">🗺️</span>Campaign</div>
+    </div>
+    <div class="fan-trigger" onclick="toggleFan('military')"><span class="btn-icon">⚔️</span>Military<span class="notif-dot" id="mil-dot"></span></div>
+  </div>
+
+  <!-- World fan -->
+  <div class="fan-group" id="fan-world">
+    <div class="fan-popup" id="fanpop-world">
+      <div class="fan-item" onclick="cf();openWorldMap()"><span class="fi-icon">🌍</span>World Map<span class="fi-dot" id="fd-map"></span></div>
+      <div class="fan-item" onclick="cf();showQuests()"><span class="fi-icon">📜</span>Quests<span class="fi-dot" id="fd-quest"></span></div>
+      <div class="fan-item" onclick="cf();showEvents()"><span class="fi-icon">⏱️</span>Events<span class="fi-dot" id="fd-event"></span></div>
+    </div>
+    <div class="fan-trigger" onclick="toggleFan('world')"><span class="btn-icon">🌍</span>World<span class="notif-dot" id="world-dot"></span></div>
+  </div>
+
+  <!-- Profile fan -->
+  <div class="fan-group" id="fan-profile">
+    <div class="fan-popup" id="fanpop-profile">
+      <div class="fan-item" onclick="cf();showCommander()"><span class="fi-icon">🎖️</span>Commander</div>
+      <div class="fan-item" onclick="cf();showAchievements()"><span class="fi-icon">🏆</span>Achievements</div>
+      <div class="fan-item" onclick="cf();showStats()"><span class="fi-icon">📊</span>Statistics</div>
+      <div class="fan-item" onclick="cf();showAlliance()"><span class="fi-icon">🏰</span>Alliance</div>
+    </div>
+    <div class="fan-trigger" onclick="toggleFan('profile')"><span class="btn-icon">👤</span>Profile</div>
+  </div>
+
+  <!-- Settings (standalone) -->
+  <div class="action-btn" onclick="showSettings()" style="border-radius:10px;padding:6px 10px;min-width:48px"><span class="btn-icon">⚙️</span>Settings</div>
+</div>
+</div><!-- end game-wrapper -->
+<div id="world-map-screen">
+  <div id="map-topbar"><span class="map-title">🌍 World Map</span><span class="map-coords" id="map-coords">—</span><button class="map-close-btn" onclick="closeWorldMap()">✕ Base</button></div>
+  <canvas id="map-canvas"></canvas>
+  <div id="map-bottombar">
+    <div class="map-btn" onclick="mapCenterHome()">🏠 Home</div>
+    <div class="map-btn" onclick="mapZoomIn()">➕</div>
+    <div class="map-btn" onclick="mapZoomOut()">➖</div>
+    <div class="map-btn" onclick="sfx('tap');showMarchesPanel()">🚶 Marches</div>
+    <div class="map-btn" onclick="showMapLegend()">❓ Legend</div>
+  </div>
+</div>
+<canvas id="particles-canvas"></canvas>
+<div id="tutorial-overlay"><div class="tut-box" id="tut-box"></div></div>
+<div id="modal-overlay" onclick="closeModalOutside(event)"><div id="modal-panel"></div></div>
+<div id="toast-container"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// IRON COMMAND — Stage 3: Army & Combat (PvE)
+// ═══════════════════════════════════════════════════════════
+
+const CONFIG = {
+  MAX_LEVEL:10, TICK_RATE:1000,
+
+  BUILDINGS: {
+    command_center:{name:'Command Center',icon:'🏛️',desc:'HQ. Upgrade to unlock buildings & higher levels.',category:'core',maxCount:1,isHQ:true,baseCost:{gold:0,food:0,iron:0},costMul:2.2,baseTime:5,timeMul:2.0,basePower:100,effects:{unlockLevel:true}},
+    farm:{name:'Farm',icon:'🌾',desc:'Produces food.',category:'resource',maxCount:4,baseCost:{gold:50,food:0,iron:20},costMul:1.8,baseTime:10,timeMul:1.8,basePower:20,effects:{foodPerSec:2}},
+    iron_mine:{name:'Iron Mine',icon:'⛏️',desc:'Extracts iron.',category:'resource',maxCount:4,baseCost:{gold:60,food:30,iron:0},costMul:1.8,baseTime:12,timeMul:1.8,basePower:20,effects:{ironPerSec:1.5}},
+    gold_mine:{name:'Gold Vault',icon:'💰',desc:'Generates gold.',category:'resource',maxCount:3,baseCost:{gold:0,food:40,iron:40},costMul:1.9,baseTime:15,timeMul:1.8,basePower:25,effects:{goldPerSec:1}},
+    barracks:{name:'Barracks',icon:'⚔️',desc:'Train troops. Higher levels unlock stronger types.',category:'military',maxCount:3,baseCost:{gold:100,food:80,iron:60},costMul:2.0,baseTime:20,timeMul:2.0,basePower:50,effects:{troopCapacity:20}},
+    warehouse:{name:'Warehouse',icon:'🏗️',desc:'Increases resource storage.',category:'economy',maxCount:3,baseCost:{gold:80,food:40,iron:40},costMul:1.7,baseTime:14,timeMul:1.7,basePower:15,effects:{storageBonus:500}},
+    watchtower:{name:'Watchtower',icon:'🗼',desc:'Boosts base defense.',category:'defense',maxCount:2,baseCost:{gold:70,food:30,iron:80},costMul:1.9,baseTime:18,timeMul:1.9,basePower:40,effects:{defense:15}},
+    hospital:{name:'Hospital',icon:'🏥',desc:'Heals wounded troops after battle.',category:'military',maxCount:2,baseCost:{gold:90,food:60,iron:50},costMul:1.8,baseTime:16,timeMul:1.8,basePower:30,effects:{healCapacity:10}},
+    research_lab:{name:'Research Lab',icon:'🔬',desc:'Unlocks tech tree.',category:'core',maxCount:1,baseCost:{gold:120,food:80,iron:80},costMul:2.0,baseTime:25,timeMul:2.0,basePower:60,effects:{researchSpeed:0.05}}
+  },
+
+  // ─── TROOPS ───
+  TROOPS: {
+    infantry:  {name:'Infantry',  icon:'🪖', desc:'Cheap, reliable ground troops.',          atk:8,  def:6,  hp:50,  speed:10, cost:{gold:30,food:40,iron:10},  time:8,  unlockBarracks:1, power:5},
+    vehicle:   {name:'Vehicle',   icon:'🚛', desc:'Armored transports. High defense.',       atk:12, def:14, hp:80,  speed:8,  cost:{gold:60,food:30,iron:50},  time:15, unlockBarracks:2, power:12},
+    artillery: {name:'Artillery', icon:'💣', desc:'Devastating ranged firepower.',            atk:25, def:4,  hp:35,  speed:5,  cost:{gold:80,food:50,iron:70},  time:20, unlockBarracks:3, power:18},
+    air:       {name:'Air Support',icon:'🚁',desc:'Fast aerial units. Bypass ground defense.',atk:20, def:8,  hp:45,  speed:15, cost:{gold:100,food:60,iron:80}, time:25, unlockBarracks:4, power:22}
+  },
+
+  // ─── PVE CAMPAIGN ───
+  CAMPAIGN: [
+    {id:1, name:'Bandit Camp',       desc:'A small group of raiders.',            enemy:{infantry:5},                         reward:{gold:200,food:100,iron:100,xp:30}, reqHQ:1},
+    {id:2, name:'Raider Outpost',    desc:'Better armed than expected.',          enemy:{infantry:8,vehicle:2},               reward:{gold:300,food:200,iron:150,xp:50}, reqHQ:1},
+    {id:3, name:'Supply Convoy',     desc:'Intercept enemy supplies.',            enemy:{infantry:6,vehicle:4},               reward:{gold:400,food:300,iron:200,xp:60}, reqHQ:2},
+    {id:4, name:'Rebel Garrison',    desc:'A fortified rebel position.',          enemy:{infantry:10,vehicle:4,artillery:2},  reward:{gold:500,food:400,iron:300,xp:80}, reqHQ:2},
+    {id:5, name:'Mountain Pass',     desc:'Enemy controls the high ground.',      enemy:{infantry:8,vehicle:6,artillery:4},   reward:{gold:600,food:500,iron:400,xp:100}, reqHQ:3},
+    {id:6, name:'Desert Stronghold', desc:'A well-defended desert fortress.',     enemy:{infantry:12,vehicle:8,artillery:4},  reward:{gold:800,food:600,iron:500,xp:120}, reqHQ:3},
+    {id:7, name:'Coastal Battery',   desc:'Heavy guns protect the shoreline.',    enemy:{infantry:10,vehicle:6,artillery:8,air:2}, reward:{gold:1000,food:700,iron:600,xp:150}, reqHQ:4},
+    {id:8, name:'Enemy Airfield',    desc:'Destroy their air capabilities.',      enemy:{infantry:8,vehicle:4,artillery:6,air:6}, reward:{gold:1200,food:800,iron:700,xp:180}, reqHQ:4},
+    {id:9, name:'Industrial Zone',   desc:'A massive weapons factory.',           enemy:{infantry:15,vehicle:10,artillery:8,air:4}, reward:{gold:1500,food:1000,iron:900,xp:220}, reqHQ:5},
+    {id:10,name:'Forward Command',   desc:'Enemy forward operating base.',        enemy:{infantry:20,vehicle:12,artillery:10,air:6}, reward:{gold:1800,food:1200,iron:1000,xp:260}, reqHQ:5},
+    {id:11,name:'Iron Citadel',      desc:'A fortress of steel and fire.',        enemy:{infantry:25,vehicle:15,artillery:12,air:8}, reward:{gold:2200,food:1500,iron:1200,xp:300}, reqHQ:6},
+    {id:12,name:'Shadow Valley',     desc:'Enemy elites lurk in the darkness.',   enemy:{infantry:20,vehicle:18,artillery:14,air:10}, reward:{gold:2600,food:1800,iron:1500,xp:350}, reqHQ:7},
+    {id:13,name:'Omega Base',        desc:'Their main research facility.',        enemy:{infantry:30,vehicle:20,artillery:16,air:12}, reward:{gold:3000,food:2000,iron:1800,xp:400}, reqHQ:8},
+    {id:14,name:'Final Frontier',    desc:'The last line of defense.',            enemy:{infantry:35,vehicle:25,artillery:20,air:15}, reward:{gold:4000,food:2500,iron:2000,xp:500}, reqHQ:9},
+    {id:15,name:'Command Nexus',     desc:'The enemy headquarters. End this war.',enemy:{infantry:40,vehicle:30,artillery:25,air:20}, reward:{gold:5000,food:3000,iron:2500,xp:750}, reqHQ:10},
+  ],
+
+  TECH_TREE: {
+    economy:{name:'Economy',icon:'💰',color:'var(--gold-color)',techs:[
+      {id:'eco_gather',name:'Improved Gathering',icon:'⛏️',desc:'Resource production +10%/lv.',maxLevel:5,baseCost:{gold:100,food:100,iron:100},costMul:2.0,baseTime:30,timeMul:2.0,xp:25,effect:{resourceBoost:.10}},
+      {id:'eco_storage',name:'Advanced Logistics',icon:'📦',desc:'Storage capacity +20%/lv.',maxLevel:5,baseCost:{gold:150,food:80,iron:120},costMul:2.0,baseTime:40,timeMul:2.0,xp:30,effect:{storageBoost:.20},requires:'eco_gather:2'},
+      {id:'eco_trade',name:'Trade Routes',icon:'🚢',desc:'Passive gold +3/sec per lv.',maxLevel:5,baseCost:{gold:80,food:200,iron:150},costMul:2.2,baseTime:50,timeMul:2.0,xp:40,effect:{goldPassive:3},requires:'eco_storage:1'},
+      {id:'eco_surplus',name:'Surplus Economy',icon:'📈',desc:'All costs -5%/lv.',maxLevel:3,baseCost:{gold:300,food:300,iron:300},costMul:2.5,baseTime:90,timeMul:2.2,xp:75,effect:{costReduction:.05},requires:'eco_trade:2'}
+    ]},
+    military:{name:'Military',icon:'⚔️',color:'var(--accent-red)',techs:[
+      {id:'mil_training',name:'Combat Training',icon:'🎯',desc:'Troop ATK +8%/lv.',maxLevel:5,baseCost:{gold:120,food:150,iron:80},costMul:2.0,baseTime:35,timeMul:2.0,xp:25,effect:{atkBoost:.08}},
+      {id:'mil_tactics',name:'Advanced Tactics',icon:'📋',desc:'Troop DEF +8%/lv.',maxLevel:5,baseCost:{gold:150,food:120,iron:150},costMul:2.0,baseTime:45,timeMul:2.0,xp:35,effect:{defBoost:.08},requires:'mil_training:2'},
+      {id:'mil_armor',name:'Reinforced Armor',icon:'🛡️',desc:'Troop HP +10%/lv.',maxLevel:5,baseCost:{gold:180,food:100,iron:200},costMul:2.2,baseTime:55,timeMul:2.0,xp:45,effect:{hpBoost:.10},requires:'mil_tactics:1'},
+      {id:'mil_elite',name:'Elite Forces',icon:'💀',desc:'All troop stats +5%/lv. Power +100.',maxLevel:3,baseCost:{gold:400,food:300,iron:350},costMul:2.5,baseTime:120,timeMul:2.2,xp:100,effect:{eliteBoost:.05,elitePower:100},requires:'mil_armor:2'}
+    ]},
+    defense:{name:'Defense',icon:'🛡️',color:'var(--accent-cyan)',techs:[
+      {id:'def_walls',name:'Reinforced Walls',icon:'🧱',desc:'Base defense +12/lv.',maxLevel:5,baseCost:{gold:100,food:60,iron:160},costMul:2.0,baseTime:30,timeMul:2.0,xp:25,effect:{wallDefense:12}},
+      {id:'def_traps',name:'Trap Systems',icon:'⚡',desc:'Enemy ATK -5%/lv in defense.',maxLevel:5,baseCost:{gold:130,food:80,iron:180},costMul:2.0,baseTime:40,timeMul:2.0,xp:30,effect:{trapReduction:.05},requires:'def_walls:2'},
+      {id:'def_shield',name:'Energy Shield',icon:'🔮',desc:'Damage taken -6%/lv.',maxLevel:5,baseCost:{gold:200,food:120,iron:220},costMul:2.2,baseTime:60,timeMul:2.0,xp:50,effect:{shieldReduction:.06},requires:'def_traps:1'},
+      {id:'def_fortress',name:'Fortress Protocol',icon:'🏰',desc:'Massive power boost +200/lv.',maxLevel:3,baseCost:{gold:500,food:250,iron:500},costMul:2.5,baseTime:150,timeMul:2.2,xp:120,effect:{fortressPower:200},requires:'def_shield:2'}
+    ]}
+  },
+
+  QUESTS: [
+    {id:'q_build1',name:'First Steps',desc:'Build your first Farm.',type:'build',target:'farm',count:1,reward:{gold:100,food:50,iron:50,xp:20}},
+    {id:'q_build3',name:'Growing Base',desc:'Have 3 buildings.',type:'buildCount',count:3,reward:{gold:200,food:100,iron:100,xp:40}},
+    {id:'q_hq2',name:'Command Upgrade',desc:'HQ to Lv.2.',type:'buildLevel',target:'command_center',level:2,reward:{gold:150,food:150,iron:150,xp:50}},
+    {id:'q_hq3',name:'Rising Power',desc:'HQ to Lv.3.',type:'buildLevel',target:'command_center',level:3,reward:{gold:300,food:200,iron:200,xp:75}},
+    {id:'q_lab',name:'Knowledge is Power',desc:'Build a Research Lab.',type:'build',target:'research_lab',count:1,reward:{gold:200,food:200,iron:200,xp:60}},
+    {id:'q_research1',name:'First Discovery',desc:'Complete 1 research.',type:'researchCount',count:1,reward:{gold:250,food:150,iron:150,xp:50}},
+    {id:'q_barracks',name:'Call to Arms',desc:'Build a Barracks.',type:'build',target:'barracks',count:1,reward:{gold:200,food:150,iron:100,xp:40}},
+    {id:'q_train10',name:'Recruit Squad',desc:'Train 10 troops.',type:'trainCount',count:10,reward:{gold:300,food:200,iron:200,xp:60}},
+    {id:'q_train50',name:'Standing Army',desc:'Train 50 troops total.',type:'trainCount',count:50,reward:{gold:600,food:400,iron:400,xp:120}},
+    {id:'q_battle1',name:'First Blood',desc:'Win your first battle.',type:'battleWins',count:1,reward:{gold:300,food:200,iron:200,xp:50}},
+    {id:'q_battle5',name:'Veteran',desc:'Win 5 battles.',type:'battleWins',count:5,reward:{gold:600,food:400,iron:400,xp:100}},
+    {id:'q_campaign5',name:'Conqueror',desc:'Clear 5 campaign missions.',type:'campaignCleared',count:5,reward:{gold:800,food:600,iron:600,xp:150}},
+    {id:'q_power500',name:'Show of Force',desc:'Reach 500 Power.',type:'power',count:500,reward:{gold:300,food:200,iron:200,xp:60}},
+    {id:'q_power2000',name:'War Machine',desc:'Reach 2000 Power.',type:'power',count:2000,reward:{gold:600,food:400,iron:400,xp:120}},
+    {id:'q_upgrade10',name:'Master Builder',desc:'10 upgrades total.',type:'upgradeCount',count:10,reward:{gold:500,food:400,iron:400,xp:150}},
+    {id:'q_lvl5',name:'Commander Lv.5',desc:'Reach Commander Level 5.',type:'cmdLevel',level:5,reward:{gold:800,food:600,iron:600,xp:200}},
+    {id:'q_occupy1',name:'Land Grab',desc:'Occupy your first resource tile.',type:'tilesOccupied',count:1,reward:{gold:300,food:200,iron:200,xp:50}},
+    {id:'q_occupy3',name:'Territory',desc:'Occupy 3 resource tiles.',type:'tilesOccupied',count:3,reward:{gold:600,food:400,iron:400,xp:100}},
+    {id:'q_npc1',name:'Map Raider',desc:'Defeat an NPC base on the map.',type:'npcsDefeated',count:1,reward:{gold:400,food:300,iron:300,xp:80}},
+    {id:'q_npc3',name:'Warlord',desc:'Defeat 3 NPC bases on the map.',type:'npcsDefeated',count:3,reward:{gold:1000,food:800,iron:800,xp:200}},
+  ],
+
+  DAILY_REWARDS: [
+    {day:1,icon:'💰',label:'100 Gold',reward:{gold:100}},{day:2,icon:'🌾',label:'100 Food',reward:{food:100}},
+    {day:3,icon:'⛏️',label:'100 Iron',reward:{iron:100}},{day:4,icon:'⭐',label:'50 XP',reward:{xp:50}},
+    {day:5,icon:'💰',label:'300 Gold',reward:{gold:300}},{day:6,icon:'🌾',label:'300 F+I',reward:{food:150,iron:150}},
+    {day:7,icon:'🎁',label:'500 All!',reward:{gold:500,food:500,iron:500,xp:100}},
+  ],
+
+  XP_PER_LEVEL:100, XP_SCALING:1.4,
+  BASE_STORAGE:1000, STARTER_RESOURCES:{gold:500,food:300,iron:200},
+  HOSPITAL_HEAL_RATE: 0.1,
+
+  // ─── WORLD MAP ───
+  MAP_SIZE: 40, // 40x40 grid
+  TILE_PX: 40,  // pixel size per tile at zoom 1
+  TILE_TYPES: {
+    plains:{icon:'·',color:'#1a2010',name:'Plains'},
+    forest:{icon:'🌲',color:'#0f2a10',name:'Forest'},
+    mountain:{icon:'⛰️',color:'#2a2530',name:'Mountain',passable:false},
+    lake:{icon:'🌊',color:'#0a1a30',name:'Lake',passable:false},
+    gold_deposit:{icon:'💰',color:'#2a2510',name:'Gold Deposit',resource:'gold',rate:2},
+    food_field:{icon:'🌾',color:'#1a2a10',name:'Fertile Field',resource:'food',rate:3},
+    iron_deposit:{icon:'⛏️',color:'#1e1e2a',name:'Iron Deposit',resource:'iron',rate:2},
+  },
+  NPC_BASES: [
+    {id:'npc1',name:'Bandit Hideout',icon:'🏚️',power:200,enemy:{infantry:8},reward:{gold:150,food:100,iron:80,xp:30},minDist:3,maxDist:6},
+    {id:'npc2',name:'Raider Camp',icon:'⛺',power:500,enemy:{infantry:12,vehicle:4},reward:{gold:300,food:200,iron:150,xp:60},minDist:5,maxDist:9},
+    {id:'npc3',name:'Rebel Outpost',icon:'🏗️',power:1000,enemy:{infantry:15,vehicle:8,artillery:4},reward:{gold:500,food:350,iron:300,xp:100},minDist:8,maxDist:13},
+    {id:'npc4',name:'Warlord Fortress',icon:'🏰',power:2000,enemy:{infantry:20,vehicle:12,artillery:8,air:4},reward:{gold:800,food:600,iron:500,xp:180},minDist:12,maxDist:17},
+    {id:'npc5',name:'Shadow Citadel',icon:'🗼',power:4000,enemy:{infantry:30,vehicle:20,artillery:15,air:10},reward:{gold:1500,food:1000,iron:800,xp:300},minDist:15,maxDist:19},
+  ],
+  MARCH_SPEED: 5, // seconds per tile distance
+  MAX_MARCHES: 3,
+  SCOUT_RADIUS: 3,
+  BASE_VISION: 4,
+
+  // ─── GEMS ───
+  GEM_SPEED_COST: (secsLeft) => Math.max(1, Math.ceil(secsLeft / 60)), // 1 gem per minute remaining
+  GEM_SOURCES: { achievement: 5, dailyLogin: 2, eventReward: 10, raidBoss: 15 },
+
+  // ─── HEROES ───
+  HEROES: [
+    {id:'hero_sgt',name:'Sgt. Reeves',icon:'🎖️',rarity:'common',bonus:'atk',value:5,desc:'+5% Army ATK',unlockHQ:1,cost:0},
+    {id:'hero_eng',name:'Chief Engineer',icon:'🔧',rarity:'common',bonus:'buildSpeed',value:10,desc:'-10% Build Time',unlockHQ:2,cost:50},
+    {id:'hero_sci',name:'Dr. Voss',icon:'🧪',rarity:'rare',bonus:'researchSpeed',value:15,desc:'-15% Research Time',unlockHQ:3,cost:100},
+    {id:'hero_qm',name:'Quartermaster',icon:'📦',rarity:'rare',bonus:'gather',value:12,desc:'+12% Resource Rate',unlockHQ:4,cost:150},
+    {id:'hero_sniper',name:'Ghost',icon:'🎯',rarity:'epic',bonus:'atk',value:15,desc:'+15% Army ATK',unlockHQ:5,cost:250},
+    {id:'hero_medic',name:'Doc Mercy',icon:'💉',rarity:'epic',bonus:'healRate',value:25,desc:'+25% Hospital Rate',unlockHQ:6,cost:350},
+    {id:'hero_general',name:'Gen. Ironclad',icon:'⚔️',rarity:'legendary',bonus:'allStats',value:8,desc:'+8% All Combat Stats',unlockHQ:8,cost:500},
+    {id:'hero_warlord',name:'Warlord Kaine',icon:'👑',rarity:'legendary',bonus:'power',value:10,desc:'+10% Total Power',unlockHQ:10,cost:750},
+  ],
+
+  // ─── EVENTS ───
+  EVENTS: [
+    {id:'evt_rush',name:'Resource Rush',icon:'💰',desc:'All production doubled!',duration:3600,bonus:'production',value:2,rewards:{gold:2000,food:1500,iron:1000,gems:10}},
+    {id:'evt_war',name:'War Games',icon:'⚔️',desc:'Battle rewards doubled!',duration:3600,bonus:'battleReward',value:2,rewards:{gold:1500,food:1000,iron:800,gems:8}},
+    {id:'evt_raid',name:'Raid Boss: Titan',icon:'👹',desc:'Deal damage to defeat the boss!',duration:7200,bonus:'raidBoss',value:1,rewards:{gold:3000,food:2000,iron:1500,gems:15},bossHP:10000},
+  ]
+};
+
+// ─── GAME STATE ───
+let GS = {
+  resources:{gold:500,food:300,iron:200},
+  storage:{gold:1000,food:1000,iron:1000},
+  buildings:[], constructions:[], totalPower:0, hqLevel:1,
+  research:{}, activeResearch:null,
+  commander:{level:1,xp:0,name:'Commander'},
+  quests:{}, dailyLogin:{streak:0,lastClaim:null,history:[]},
+  // Stage 3
+  troops:{infantry:0,vehicle:0,artillery:0,air:0},
+  trainingQueue:[], // {type,startTime,endTime}
+  wounded:{infantry:0,vehicle:0,artillery:0,air:0},
+  campaignCleared:[], // array of cleared mission ids
+  battleReports:[], // last 10 reports
+  // Stage 4
+  worldMap:null, // generated tile grid
+  mapNPCs:[], // placed NPC bases [{id,npcId,x,y,defeated}]
+  occupiedTiles:[], // [{x,y,type}] tiles player occupies
+  marches:[], // [{id,destX,destY,troops,startTime,endTime,type,targetNpcIdx}]
+  fogRevealed:[], // [[x,y],...] set of revealed coords
+  mapSeed:0,
+  // Stage 5
+  achievements:{}, // {achId: timestamp}
+  soundOn:true,
+  gems:0,
+  heroes:{}, // {heroId: true} = owned
+  equippedHero:null, // heroId
+  alliance:{name:null,tag:null,icon:'🏰',created:null},
+  activeEvent:null, // {eventId,startTime,endTime,progress,claimed}
+  raidDamage:0,
+  tutorialDone:false,
+  stats:{buildingsBuilt:0,upgradesDone:0,researchDone:0,troopsTrained:0,battlesWon:0,battlesLost:0,tilesOccupied:0,npcsDefeated:0,gemsEarned:0,gemsSpent:0,sessionStart:Date.now()}
+};
+
+const HQ_SLOTS=[5,6,9,10], PLOT_COUNT=16;
+let nextBuildingId=1;
+
+// ═══════════════════════════════════════
+// INIT & GAME LOOP
+// ═══════════════════════════════════════
+let gameStarted=false;
+let activeSlot=0; // 1, 2, or 3
+
+function slotKey(n){return`ironcommand_slot_${n}`}
+function backupKey(n){return`ironcommand_slot_${n}_bak`}
+
+function getSlotPreview(n){
+  try{const raw=localStorage.getItem(slotKey(n));if(!raw)return null;const s=JSON.parse(raw);return{hqLevel:s.hqLevel||1,power:getTotalPowerFromSave(s),cmdLevel:s.commander?s.commander.level:1,savedAt:s.savedAt||0,buildings:(s.buildings||[]).filter(b=>b.level>0).length}}catch(e){return null}
+}
+function getTotalPowerFromSave(s){
+  let p=0;(s.buildings||[]).forEach(b=>{const d=CONFIG.BUILDINGS[b.type];if(d)p+=d.basePower*b.level});
+  if(s.troops)Object.entries(s.troops).forEach(([k,v])=>{if(CONFIG.TROOPS[k])p+=CONFIG.TROOPS[k].power*v});
+  if(s.commander)p+=s.commander.level*10;return p;
+}
+
+function init(){renderSlotPicker()}
+
+function renderSlotPicker(){
+  const el=document.getElementById('slot-picker');if(!el)return;
+  let h='';
+  for(let i=1;i<=3;i++){
+    const p=getSlotPreview(i);
+    if(p){
+      const ago=p.savedAt?timeSince(p.savedAt):'—';
+      h+=`<div class="slot-card" onclick="loadSlot(${i})"><div class="slot-label">Slot ${i}</div><div class="slot-info"><span class="slot-hq">HQ ${p.hqLevel}</span><span class="slot-power">⚡${fN(p.power)}</span></div><div class="slot-stats"><span>🎖️Lv.${p.cmdLevel}</span><span>🏗️${p.buildings}</span><span>${ago}</span></div><button class="slot-delete" onclick="event.stopPropagation();deleteSlot(${i})" title="Delete">🗑</button></div>`;
+    }else{
+      h+=`<div class="slot-card empty" onclick="newGameSlot(${i})"><div class="slot-label">Slot ${i}</div><div style="font-size:20px;margin:4px 0">➕</div><div style="font-size:11px;color:var(--text-secondary)">New Game</div></div>`;
+    }
+  }
+  el.innerHTML=h;
+}
+
+function timeSince(ts){const s=Math.floor((Date.now()-ts)/1000);if(s<60)return'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago'}
+
+function loadSlot(n){
+  activeSlot=n;
+  loadGame();
+  document.getElementById('main-menu').classList.add('hidden');
+  document.getElementById('game-wrapper').style.display='';
+  gameStarted=true;
+  initParticles();
+  checkDailyLogin();renderBaseGrid();updateUI();gameLoop();
+  if(!window._loopInterval){window._loopInterval=setInterval(gameLoop,CONFIG.TICK_RATE);setInterval(autoSave,30000)}
+  sfx('welcome');
+}
+
+function newGameSlot(n){
+  activeSlot=n;
+  initNewGame();
+  document.getElementById('main-menu').classList.add('hidden');
+  document.getElementById('game-wrapper').style.display='';
+  gameStarted=true;
+  initParticles();
+  renderBaseGrid();updateUI();gameLoop();
+  if(!window._loopInterval){window._loopInterval=setInterval(gameLoop,CONFIG.TICK_RATE);setInterval(autoSave,30000)}
+  showToast('New game started!');sfx('build');
+  setTimeout(startTutorial,800);
+}
+
+function deleteSlot(n){
+  const p=getSlotPreview(n);
+  if(!p)return;
+  if(!confirm(`Delete Slot ${n}? (HQ ${p.hqLevel}, ⚡${fN(p.power)}) This cannot be undone.`))return;
+  localStorage.removeItem(slotKey(n));
+  localStorage.removeItem(backupKey(n));
+  renderSlotPicker();
+  showToast(`Slot ${n} deleted.`,'toast-red');
+}
+
+function returnToMainMenu(){
+  autoSave();
+  closeModal();closeAllFans();closeWorldMap();
+  document.getElementById('game-wrapper').style.display='none';
+  document.getElementById('main-menu').classList.remove('hidden');
+  renderSlotPicker();
+}
+
+// ─── FAN MENUS ───
+let openFanId=null;
+function toggleFan(id){
+  if(openFanId===id){closeAllFans();return}
+  closeAllFans();
+  openFanId=id;
+  document.getElementById('fanpop-'+id).classList.add('open');
+  document.getElementById('fan-'+id).querySelector('.fan-trigger').classList.add('open');
+  document.getElementById('fan-overlay').classList.add('open');
+  sfx('navigate');
+}
+function closeAllFans(){
+  if(openFanId){document.getElementById('fanpop-'+openFanId).classList.remove('open');document.getElementById('fan-'+openFanId).querySelector('.fan-trigger').classList.remove('open')}
+  openFanId=null;document.getElementById('fan-overlay').classList.remove('open');
+}
+function cf(){closeAllFans();sfx('tap')} // shorthand for fan items
+
+// ─── SETTINGS ───
+function showSettings(){
+  let h=`<div class="modal-header"><span class="modal-title">⚙️ Settings</span><div class="modal-close" onclick="closeModal()">✕</div></div>`;
+  h+=`<div class="settings-section"><div class="settings-section-title">Game</div>`;
+  h+=`<div class="settings-row"><span>💾 Save Game</span><button class="btn-sm btn-primary" onclick="saveGame()">Save Now</button></div>`;
+  h+=`<div class="settings-row"><span>🔊 Sound Effects</span><button class="btn-sm btn-primary" onclick="GS.soundOn=!GS.soundOn;sfx('click');showSettings()">${GS.soundOn?'🔊 ON':'🔇 OFF'}</button></div>`;
+  h+=`<div class="settings-row"><span>🏠 Main Menu</span><button class="btn-sm btn-primary" onclick="closeModal();returnToMainMenu()">Return</button></div>`;
+  h+=`</div>`;
+  h+=`<div class="settings-section"><div class="settings-section-title">Data</div>`;
+  h+=`<div class="settings-row"><span>📤 Export Save</span><button class="btn-sm btn-primary" onclick="exportSave()">Export</button></div>`;
+  h+=`<div class="settings-row"><span>📥 Import Save</span><button class="btn-sm btn-primary" onclick="showImport()">Import</button></div>`;
+  const hasBak=activeSlot&&localStorage.getItem(backupKey(activeSlot));
+  h+=`<div class="settings-row"><span>🔄 Restore Backup</span><button class="btn-sm btn-primary" ${hasBak?'':'disabled'} onclick="restoreBackup()">${hasBak?'Restore':'No backup'}</button></div>`;
+  h+=`</div>`;
+  h+=`<div class="settings-section"><div class="settings-section-title">Info</div>`;
+  h+=`<div class="settings-row"><span>Version</span><span style="color:var(--text-dim)">v0.6.0 — Stage 6</span></div>`;
+  h+=`<div class="settings-row"><span>Slot</span><span style="color:var(--accent-blue)">#${activeSlot}</span></div>`;
+  h+=`<div class="settings-row"><span>Power</span><span style="color:var(--accent-blue)">⚡ ${fN(GS.totalPower)}</span></div>`;
+  h+=`<div class="settings-row"><span>🏆 Achievements</span><span style="color:var(--gold-color)">${Object.keys(GS.achievements||{}).length}/${ACHIEVEMENTS.length}</span></div>`;
+  h+=`</div>`;
+  h+=`<div class="settings-section"><div class="settings-section-title" style="color:var(--accent-red)">⚠️ Danger Zone</div>`;
+  h+=`<p style="color:var(--text-secondary);font-size:10px;margin-bottom:6px">Type <b>RESET</b> to erase <b>Slot ${activeSlot}</b>. This cannot be undone.</p>`;
+  h+=`<input type="text" class="reset-input" id="reset-confirm-input" placeholder='Type "RESET" here' autocomplete="off">`;
+  h+=`<button class="btn-danger" onclick="tryResetGame()">🗑 Erase Slot ${activeSlot}</button>`;
+  h+=`</div>`;
+  openModal(h);
+}
+
+function showSettingsFromMenu(){
+  let h=`<div class="modal-header"><span class="modal-title">⚙️ Settings</span><div class="modal-close" onclick="closeModal()">✕</div></div>`;
+  h+=`<div class="settings-section"><div class="settings-section-title">Info</div>`;
+  h+=`<div class="settings-row"><span>Version</span><span style="color:var(--text-dim)">v0.6.0 — Stage 6</span></div>`;
+  h+=`</div>`;
+  h+=`<div class="settings-section"><div class="settings-section-title" style="color:var(--accent-red)">⚠️ Danger Zone</div>`;
+  h+=`<p style="color:var(--text-secondary);font-size:10px;margin-bottom:6px">Type <b>RESET</b> to erase <b>ALL slots</b>. This cannot be undone.</p>`;
+  h+=`<input type="text" class="reset-input" id="reset-confirm-input" placeholder='Type "RESET" here' autocomplete="off">`;
+  h+=`<button class="btn-danger" onclick="tryResetAll()">🗑 Erase All Data</button>`;
+  h+=`</div>`;
+  document.getElementById('modal-panel').innerHTML=h;
+  document.getElementById('modal-overlay').classList.add('active');
+}
+
+function tryResetGame(){
+  const input=document.getElementById('reset-confirm-input');
+  if(!input||input.value.trim()!=='RESET'){showToast('Type RESET to confirm!','toast-red');return}
+  localStorage.removeItem(slotKey(activeSlot));
+  localStorage.removeItem(backupKey(activeSlot));
+  location.reload();
+}
+function tryResetAll(){
+  const input=document.getElementById('reset-confirm-input');
+  if(!input||input.value.trim()!=='RESET'){showToast('Type RESET to confirm!','toast-red');return}
+  for(let i=1;i<=3;i++){localStorage.removeItem(slotKey(i));localStorage.removeItem(backupKey(i))}
+  // Also clean up old keys
+  for(const k of['ironcommand_save_v4','ironcommand_save_v3','ironcommand_save_v2','ironcommand_save_v1'])localStorage.removeItem(k);
+  location.reload();
+}
+
+function gameLoop(){
+  const now=Date.now();
+  const rates=getResourceRates();
+  GS.resources.gold=Math.min(GS.resources.gold+rates.gold,GS.storage.gold);
+  GS.resources.food=Math.min(GS.resources.food+rates.food,GS.storage.food);
+  GS.resources.iron=Math.min(GS.resources.iron+rates.iron,GS.storage.iron);
+
+  // Constructions
+  const done=[];
+  GS.constructions=GS.constructions.filter(c=>{if(now>=c.endTime){done.push(c);return false}return true});
+  done.forEach(c=>{const b=GS.buildings.find(x=>x.id===c.buildingId);if(b){b.level=c.targetLevel;if(b.type==='command_center')GS.hqLevel=b.level;GS.stats.upgradesDone++;addXP(15+c.targetLevel*5);showToast(`${CONFIG.BUILDINGS[b.type].name} → Lv.${b.level}!`);sfx('build')}});
+
+  // Research
+  if(GS.activeResearch&&now>=GS.activeResearch.endTime){const r=GS.activeResearch;GS.research[r.techId]=r.targetLevel;GS.stats.researchDone++;const t=findTech(r.techId);addXP(t?t.xp*r.targetLevel:30);showToast(`Research: ${t?t.name:r.techId} Lv.${r.targetLevel}!`,'toast-purple');sfx('research');GS.activeResearch=null}
+
+  // Training queue
+  const trained=[];
+  GS.trainingQueue=GS.trainingQueue.filter(t=>{if(now>=t.endTime){trained.push(t);return false}return true});
+  trained.forEach(t=>{GS.troops[t.type]++;GS.stats.troopsTrained++;});
+  if(trained.length>0){showToast(`${trained.length} troop(s) trained!`,'toast-red');sfx('train')}
+
+  // Hospital healing
+  healWounded();
+
+  // Process marches
+  processMarchArrivals();
+
+  recalcStorage();
+  updateUI();
+  renderBaseGrid();
+  // Check achievements every 5 seconds
+  if(!window._achTimer||Date.now()-window._achTimer>5000){window._achTimer=Date.now();checkAchievements()}
+}
+
+// ═══════════════════════════════════════
+// RESOURCE & STORAGE CALCS
+// ═══════════════════════════════════════
+function getResourceRates(){
+  let gold=0.5,food=0.5,iron=0.3;
+  const rB=1+(GS.research['eco_gather']||0)*.10, gP=(GS.research['eco_trade']||0)*3, oR=getOccupiedRates();
+  GS.buildings.forEach(b=>{if(isConstr(b.id))return;const d=CONFIG.BUILDINGS[b.type];if(d.effects.goldPerSec)gold+=d.effects.goldPerSec*b.level;if(d.effects.foodPerSec)food+=d.effects.foodPerSec*b.level;if(d.effects.ironPerSec)iron+=d.effects.ironPerSec*b.level});
+  const hB=1+getHeroBonus('gather'),eB=getEventBonus('production');
+  return{gold:(gold*rB+gP+oR.gold)*hB*eB, food:(food*rB+oR.food)*hB*eB, iron:(iron*rB+oR.iron)*hB*eB};
+}
+function recalcStorage(){
+  let bonus=0;const sB=1+(GS.research['eco_storage']||0)*.20;
+  GS.buildings.forEach(b=>{if(isConstr(b.id))return;const d=CONFIG.BUILDINGS[b.type];if(d.effects.storageBonus)bonus+=d.effects.storageBonus*b.level});
+  const base=Math.floor((CONFIG.BASE_STORAGE+GS.hqLevel*500+bonus)*sB);
+  GS.storage.gold=base;GS.storage.food=base;GS.storage.iron=base;
+}
+function getTotalPower(){
+  let p=0;
+  GS.buildings.forEach(b=>{p+=CONFIG.BUILDINGS[b.type].basePower*b.level});
+  Object.entries(GS.research).forEach(([tid,lv])=>{const t=findTech(tid);if(t?.effect.elitePower)p+=t.effect.elitePower*lv;if(t?.effect.fortressPower)p+=t.effect.fortressPower*lv;if(t?.effect.wallDefense)p+=t.effect.wallDefense*lv});
+  Object.entries(GS.troops).forEach(([k,v])=>{p+=CONFIG.TROOPS[k].power*v});
+  p+=GS.commander.level*10;
+  return Math.floor(p*(1+getHeroBonus('power')));
+}
+
+// ═══════════════════════════════════════
+// TROOP CAPACITY & TRAINING
+// ═══════════════════════════════════════
+function getTroopCap(){
+  let cap=0;
+  GS.buildings.forEach(b=>{if(b.type==='barracks'&&!isConstr(b.id))cap+=CONFIG.BUILDINGS.barracks.effects.troopCapacity*b.level});
+  cap+=(GS.research['mil_training']||0)*15;
+  return cap;
+}
+function getTotalTroops(){return Object.values(GS.troops).reduce((a,b)=>a+b,0)+GS.trainingQueue.length}
+function getMaxBarracksLv(){return Math.max(0,...GS.buildings.filter(b=>b.type==='barracks'&&!isConstr(b.id)).map(b=>b.level))}
+function getTrainTime(type){const base=CONFIG.TROOPS[type].time;return Math.max(3,Math.floor(base*(1-(GS.research['mil_elite']||0)*.03)))}
+
+function trainTroop(type){
+  const td=CONFIG.TROOPS[type];
+  const costR=1-(GS.research['eco_surplus']||0)*.05;
+  const cost={gold:Math.floor(td.cost.gold*costR),food:Math.floor(td.cost.food*costR),iron:Math.floor(td.cost.iron*costR)};
+  if(!canAfford(cost)){showToast('Not enough resources!','toast-red');sfx('error');return false}
+  if(getTotalTroops()>=getTroopCap()){showToast('Army full! Upgrade Barracks.','toast-red');sfx('error');return false}
+  if(getMaxBarracksLv()<td.unlockBarracks){showToast(`Need Barracks Lv.${td.unlockBarracks}!`,'toast-red');return false}
+  spendResources(cost);
+  const time=getTrainTime(type);
+  GS.trainingQueue.push({type,startTime:Date.now(),endTime:Date.now()+time*1000});
+  showToast(`${td.icon} ${td.name} queued! (${fT(time)})`);
+  sfx('queue');
+  return true;
+}
+
+// ═══════════════════════════════════════
+// HOSPITAL / HEALING
+// ═══════════════════════════════════════
+function getHospitalCap(){
+  let cap=0;
+  GS.buildings.forEach(b=>{if(b.type==='hospital'&&!isConstr(b.id))cap+=CONFIG.BUILDINGS.hospital.effects.healCapacity*b.level});
+  return cap;
+}
+function getTotalWounded(){return Object.values(GS.wounded).reduce((a,b)=>a+b,0)}
+function healWounded(){
+  const hLv=GS.buildings.filter(b=>b.type==='hospital'&&!isConstr(b.id)).reduce((s,b)=>s+b.level,0);
+  if(hLv===0||getTotalWounded()===0)return;
+  const healPerTick=CONFIG.HOSPITAL_HEAL_RATE*hLv*(1+getHeroBonus('healRate')); // fractional heals per tick
+  // We accumulate and heal whole troops
+  if(!GS._healAccum)GS._healAccum=0;
+  GS._healAccum+=healPerTick;
+  while(GS._healAccum>=1){
+    GS._healAccum--;
+    // Heal one wounded troop (priority: infantry first)
+    for(const t of ['infantry','vehicle','artillery','air']){
+      if(GS.wounded[t]>0){
+        GS.wounded[t]--;
+        GS.troops[t]++;
+        break;
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════
+// COMBAT SYSTEM
+// ═══════════════════════════════════════
+function calcArmyStrength(troops, isPlayer){
+  let totalAtk=0, totalDef=0, totalHp=0;
+  const atkB=1+(GS.research['mil_training']||0)*.08+(GS.research['mil_elite']||0)*.05+(isPlayer?getHeroBonus('atk'):0);
+  const defB=1+(GS.research['mil_tactics']||0)*.08+(GS.research['mil_elite']||0)*.05+(isPlayer?getHeroBonus('def'):0);
+  const hpB=1+(GS.research['mil_armor']||0)*.10+(GS.research['mil_elite']||0)*.05+(isPlayer?getHeroBonus('hp'):0);
+
+  Object.entries(troops).forEach(([type,count])=>{
+    if(!count||!CONFIG.TROOPS[type])return;
+    const t=CONFIG.TROOPS[type];
+    if(isPlayer){totalAtk+=t.atk*count*atkB;totalDef+=t.def*count*defB;totalHp+=t.hp*count*hpB}
+    else{totalAtk+=t.atk*count;totalDef+=t.def*count;totalHp+=t.hp*count}
+  });
+  return{atk:totalAtk,def:totalDef,hp:totalHp,total:totalAtk+totalDef+totalHp};
+}
+
+function simulateBattle(playerTroops, enemyTroops, missionId){
+  const ps=calcArmyStrength(playerTroops,true);
+  const es=calcArmyStrength(enemyTroops,false);
+
+  // Combat rounds
+  let pHp=ps.hp, eHp=es.hp;
+  const log=[];
+  let round=0;
+  const pTotalCount=Object.values(playerTroops).reduce((a,b)=>a+b,0);
+  const eTotalCount=Object.values(enemyTroops).reduce((a,b)=>a+b,0);
+
+  log.push(`<span class="log-info">⚔️ Battle begins! Your ${pTotalCount} troops vs ${eTotalCount} enemies</span>`);
+  log.push(`<span class="log-info">Your strength: ATK ${Math.floor(ps.atk)} | DEF ${Math.floor(ps.def)} | HP ${Math.floor(ps.hp)}</span>`);
+  log.push(`<span class="log-info">Enemy strength: ATK ${Math.floor(es.atk)} | DEF ${Math.floor(es.def)} | HP ${Math.floor(es.hp)}</span>`);
+
+  while(pHp>0&&eHp>0&&round<20){
+    round++;
+    const rng=()=>0.85+Math.random()*0.3; // 85%-115% variance
+    const pDmg=Math.max(1,Math.floor((ps.atk-es.def*0.3)*rng()));
+    const eDmg=Math.max(1,Math.floor((es.atk-ps.def*0.3)*rng()));
+    eHp-=pDmg; pHp-=eDmg;
+    log.push(`<span class="log-dmg">Round ${round}: You deal ${pDmg} dmg → Enemy HP: ${Math.max(0,Math.floor(eHp))} | Enemy deals ${eDmg} dmg → Your HP: ${Math.max(0,Math.floor(pHp))}</span>`);
+  }
+
+  const win=eHp<=0||pHp>eHp;
+  const lossPct=win?Math.max(0.05,1-pHp/ps.hp):0.6+Math.random()*0.3;
+
+  // Calculate troop losses
+  const losses={}, wounded={};
+  Object.entries(playerTroops).forEach(([type,count])=>{
+    const lost=Math.min(count,Math.ceil(count*lossPct*(0.8+Math.random()*0.4)));
+    const woundedCount=Math.floor(lost*0.6); // 60% of losses are wounded, not dead
+    const deadCount=lost-woundedCount;
+    losses[type]=lost;
+    wounded[type]=woundedCount;
+  });
+
+  if(win) log.push(`<span class="log-win">🏆 VICTORY! Enemy forces destroyed!</span>`);
+  else log.push(`<span class="log-lose">💀 DEFEAT. Your forces were overwhelmed.</span>`);
+
+  return{win, losses, wounded, log, playerStrength:ps.total, enemyStrength:es.total};
+}
+
+function attackMission(missionId){
+  const mission=CONFIG.CAMPAIGN.find(m=>m.id===missionId);
+  if(!mission)return;
+  const pTroops={...GS.troops};
+  const totalP=Object.values(pTroops).reduce((a,b)=>a+b,0);
+  if(totalP===0){showToast('You have no troops! Train some first.');sfx('error');return}
+  sfx('battle');
+
+  const result=simulateBattle(pTroops,mission.enemy,missionId);
+
+  // Apply losses
+  Object.entries(result.losses).forEach(([type,lost])=>{GS.troops[type]=Math.max(0,GS.troops[type]-lost)});
+  // Add wounded to hospital (capped by hospital capacity)
+  const hospCap=getHospitalCap();
+  const curWounded=getTotalWounded();
+  let woundedAdded=0;
+  Object.entries(result.wounded).forEach(([type,count])=>{
+    const canAdd=Math.min(count,hospCap-curWounded-woundedAdded);
+    if(canAdd>0){GS.wounded[type]+=canAdd;woundedAdded+=canAdd}
+  });
+
+  // Report
+  const report={
+    missionId, missionName:mission.name, win:result.win,
+    losses:result.losses, wounded:result.wounded,
+    reward:result.win?mission.reward:null,
+    log:result.log, time:Date.now()
+  };
+  GS.battleReports.unshift(report);
+  if(GS.battleReports.length>10)GS.battleReports.pop();
+
+  if(result.win){
+    if(!GS.campaignCleared.includes(missionId))GS.campaignCleared.push(missionId);
+    GS.stats.battlesWon++;
+    // Award loot (with event bonus)
+    const r=mission.reward,eM=getEventBonus('battleReward');
+    if(r.gold)GS.resources.gold=Math.min(GS.resources.gold+Math.floor(r.gold*eM),GS.storage.gold);
+    if(r.food)GS.resources.food=Math.min(GS.resources.food+Math.floor(r.food*eM),GS.storage.food);
+    if(r.iron)GS.resources.iron=Math.min(GS.resources.iron+Math.floor(r.iron*eM),GS.storage.iron);
+    if(r.xp)addXP(r.xp);
+    showToast(`Victory! +💰${r.gold} +🌾${r.food} +⛏️${r.iron}`,'toast-gold');sfx('victory');
+  } else {
+    GS.stats.battlesLost++;
+    showToast('Defeat! Rebuild your forces...','toast-red');sfx('defeat');
+  }
+
+  showBattleReport(report);
+}
+
+// ═══════════════════════════════════════
+// UI PANELS
+// ═══════════════════════════════════════
+function updateUI(){
+  const r=GS.resources,rates=getResourceRates();
+  document.getElementById('res-gold').textContent=fN(Math.floor(r.gold));
+  document.getElementById('res-food').textContent=fN(Math.floor(r.food));
+  document.getElementById('res-iron').textContent=fN(Math.floor(r.iron));
+  document.getElementById('rate-gold').textContent=`+${rates.gold.toFixed(1)}/s`;
+  document.getElementById('rate-food').textContent=`+${rates.food.toFixed(1)}/s`;
+  document.getElementById('rate-iron').textContent=`+${rates.iron.toFixed(1)}/s`;
+  document.getElementById('res-xp').textContent=`Lv.${GS.commander.level}`;
+  document.getElementById('res-gems').textContent=GS.gems||0;
+  const tt=Object.values(GS.troops).reduce((a,b)=>a+b,0);
+  document.getElementById('res-troops').textContent=tt;
+  document.getElementById('rate-troops').textContent=`/${getTroopCap()}`;
+  GS.totalPower=getTotalPower();
+  document.getElementById('power-value').textContent=fN(GS.totalPower);
+  updateDots();
+}
+
+function updateDots(){
+  const claimable=getClaimableQuests().length>0;
+  const labFree=hasLab()&&!GS.activeResearch;
+  const armyFree=getTotalTroops()<getTroopCap()&&hasBarracks();
+  const hasMarches=GS.marches.length>0;
+  const qc=GS.constructions.length+GS.trainingQueue.length+(GS.activeResearch?1:0)+GS.marches.length;
+  // Queue dot
+  const qd=document.getElementById('queue-dot');if(qd)qd.classList.toggle('show',qc>0);
+  // Fan item dots
+  const da=document.getElementById('fd-army');if(da)da.classList.toggle('show',armyFree);
+  const dl=document.getElementById('fd-lab');if(dl)dl.classList.toggle('show',labFree);
+  const dm=document.getElementById('fd-map');if(dm)dm.classList.toggle('show',hasMarches);
+  const dq=document.getElementById('fd-quest');if(dq)dq.classList.toggle('show',claimable);
+  const de=document.getElementById('fd-event');if(de)de.classList.toggle('show',!!GS.activeEvent&&Date.now()<(GS.activeEvent?.endTime||0));
+  // Fan group dots (aggregate)
+  const md=document.getElementById('mil-dot');if(md)md.classList.toggle('show',armyFree||labFree);
+  const wd=document.getElementById('world-dot');if(wd)wd.classList.toggle('show',hasMarches||claimable||!!GS.activeEvent);
+}
+
+function openModal(h,silent){document.getElementById('modal-panel').innerHTML=h;const ov=document.getElementById('modal-overlay');if(!ov.classList.contains('active')){ov.classList.add('active');if(!silent)sfx('open')}}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('active');sfx('close')}
+function closeModalOutside(e){if(e.target.id==='modal-overlay')closeModal()}
+
+// ─── BASE GRID ───
+function renderBaseGrid(){
+  const g=document.getElementById('base-grid');g.innerHTML='';
+  for(let i=0;i<PLOT_COUNT;i++){
+    if(i===6||i===9||i===10)continue;
+    if(i===5){const hq=GS.buildings.find(b=>b.type==='command_center');const p=mk('div','plot plot-built plot-hq');const c=hq?getC(hq.id):null;if(c)p.classList.add('constructing');p.innerHTML=`<span class="plot-icon">🏛️</span><span class="plot-name">Command</span><span class="plot-level">Lv.${hq?hq.level:1}</span>${c?`<span class="plot-timer">${fT(tRem(c))}</span>`:''}`;p.onclick=()=>showBuildingInfo(hq);g.appendChild(p);continue}
+    const b=GS.buildings.find(x=>x.slotIndex===i&&!x.isHQ);
+    if(b){const d=CONFIG.BUILDINGS[b.type];const c=getC(b.id);const isRes=b.type==='research_lab'&&GS.activeResearch;const isTrn=b.type==='barracks'&&GS.trainingQueue.length>0;const p=mk('div','plot plot-built');if(c)p.classList.add('constructing');else if(isRes)p.classList.add('researching');else if(isTrn)p.classList.add('training');let tm='';if(c)tm=`<span class="plot-timer">${fT(tRem(c))}</span>`;else if(isRes)tm=`<span class="plot-timer res-t">${fT(Math.max(0,Math.ceil((GS.activeResearch.endTime-Date.now())/1000)))}</span>`;else if(isTrn){const nt=GS.trainingQueue[0];tm=`<span class="plot-timer train-t">${fT(Math.max(0,Math.ceil((nt.endTime-Date.now())/1000)))}</span>`}
+    p.innerHTML=`<span class="plot-icon">${d.icon}</span><span class="plot-name">${d.name}</span><span class="plot-level">Lv.${b.level}</span>${tm}`;
+    p.onclick=()=>{sfx('tap');if(b.type==='research_lab'&&b.level>0)showResearch();else if(b.type==='barracks'&&b.level>0)showArmy();else if(b.type==='hospital'&&b.level>0)showHospital();else showBuildingInfo(b)};g.appendChild(p)}
+    else{const p=mk('div','plot plot-empty');p.onclick=()=>{sfx('tap');showBuildMenu(i)};g.appendChild(p)}
+  }
+}
+
+// ─── BUILD MENU ───
+function showBuildMenu(slot){sfx('tap');
+  const types=Object.entries(CONFIG.BUILDINGS).filter(([k,d])=>!d.isHQ&&countB(k)<d.maxCount);
+  let h=`<div class="modal-header"><span class="modal-title">🔨 Build</span><div class="modal-close" onclick="closeModal()">✕</div></div>`;
+  types.forEach(([k,d])=>{const cost=bCost(k,1),time=bTime(k,1);h+=`<div class="build-option" onclick="sfx('tap');buildNew('${k}',${slot})" style="${canAfford(cost)?'':'opacity:.5'}"><span class="build-option-icon">${d.icon}</span><div class="build-option-info"><div class="build-option-name">${d.name}</div><div class="build-option-desc">${d.desc}</div><div class="build-option-cost">${cost.gold?`<span style="color:var(--gold-color)">💰${fN(cost.gold)}</span>`:''}${cost.food?`<span style="color:var(--food-color)">🌾${fN(cost.food)}</span>`:''}${cost.iron?`<span style="color:var(--iron-color)">⛏️${fN(cost.iron)}</span>`:''}<span>🕐${fT(time)}</span></div></div></div>`});
+  openModal(h);
+}
+function buildNew(type,slot){const cost=bCost(type,1);if(!canAfford(cost)){sfx('error');return showToast('Not enough resources!','toast-red')}spendResources(cost);const b={id:nextBuildingId++,type,level:0,slotIndex:slot,isHQ:false};GS.buildings.push(b);GS.constructions.push({buildingId:b.id,targetLevel:1,startTime:Date.now(),endTime:Date.now()+bTime(type,1)*1000});GS.stats.buildingsBuilt++;addXP(10);sfx('queue');closeModal();showToast(`Building ${CONFIG.BUILDINGS[type].name}...`)}
+
+// ─── BUILDING INFO ───
+function showBuildingInfo(b){sfx('tap');
+  if(!b)return;const d=CONFIG.BUILDINGS[b.type],c=getC(b.id);
+  const nl=b.level+1,ml=b.type==='command_center'?CONFIG.MAX_LEVEL:GS.hqLevel+1;
+  const canUp=b.level>0&&nl<=ml&&!c;const cost=canUp?bCost(b.type,nl):null;const time=canUp?bTime(b.type,nl):0;const aff=cost?canAfford(cost):false;
+  let eff='';const e=d.effects;
+  if(e.goldPerSec)eff+=sr('Gold/sec',`${(e.goldPerSec*b.level).toFixed(1)} → ${(e.goldPerSec*nl).toFixed(1)}`,'var(--gold-color)');
+  if(e.foodPerSec)eff+=sr('Food/sec',`${(e.foodPerSec*b.level).toFixed(1)} → ${(e.foodPerSec*nl).toFixed(1)}`,'var(--food-color)');
+  if(e.ironPerSec)eff+=sr('Iron/sec',`${(e.ironPerSec*b.level).toFixed(1)} → ${(e.ironPerSec*nl).toFixed(1)}`,'var(--iron-color)');
+  if(e.troopCapacity)eff+=sr('Troop Cap',`${e.troopCapacity*b.level} → ${e.troopCapacity*nl}`);
+  if(e.storageBonus)eff+=sr('Storage',`${fN(e.storageBonus*b.level)} → ${fN(e.storageBonus*nl)}`);
+  if(e.defense)eff+=sr('Defense',`${e.defense*b.level} → ${e.defense*nl}`);
+  if(e.healCapacity)eff+=sr('Heal Cap',`${e.healCapacity*b.level} → ${e.healCapacity*nl}`);
+  if(e.researchSpeed)eff+=sr('Res. Speed',`+${(e.researchSpeed*b.level*100).toFixed(0)}% → +${(e.researchSpeed*nl*100).toFixed(0)}%`);
+
+  let h=`<div class="modal-header"><span class="modal-title">${d.icon} ${d.name}</span><div class="modal-close" onclick="closeModal()">✕</div></div>`;
+  h+=`<div class="modal-section">${sr('Level',`${b.level} / ${ml}`)}${sr('Power',fN(d.basePower*b.level),'var(--accent-blue)')}<p style="color:var(--text-secondary);font-size:11px;margin-top:4px">${d.desc}</p></div>`;
+  if(c){const rem=tRem(c),total=(c.endTime-c.startTime)/1000,prog=Math.max(0,Math.min(100,((total-rem)/total)*100));h+=`<div class="modal-section"><div class="modal-section-title">🔨 Upgrading to Lv.${c.targetLevel}</div>${sr('Time',fT(rem),'var(--accent-orange)')}<div class="queue-progress" style="margin-top:4px"><div class="queue-progress-fill" style="width:${prog}%"></div></div></div>`}
+  if(b.level>0&&eff)h+=`<div class="modal-section"><div class="modal-section-title">Effects</div>${eff}</div>`;
+  if(canUp)h+=`<div class="modal-section"><div class="modal-section-title">Upgrade to Lv.${nl}</div><div class="cost-row" style="margin-bottom:4px">${costHtml(cost)}</div>${sr('Time','🕐 '+fT(time))}</div><button class="btn-primary" ${aff?'':'disabled'} onclick="upB(${b.id})">${aff?`⬆ Upgrade to Lv.${nl}`:'💰 Not Enough'}</button>`;
+  else if(!c&&b.level>=ml)h+=`<div class="modal-section" style="text-align:center;color:var(--text-secondary);font-size:12px">${b.type==='command_center'&&b.level>=CONFIG.MAX_LEVEL?'⭐ Max level!':'Upgrade HQ first.'}</div>`;
+  if(!d.isHQ&&b.level>0&&!c)h+=`<button class="btn-danger" onclick="sfx('tap');demolB(${b.id})">🗑 Demolish</button>`;
+  openModal(h);
+}
+function upB(id){const b=GS.buildings.find(x=>x.id===id);if(!b)return;const nl=b.level+1,cost=bCost(b.type,nl);if(!canAfford(cost)||isConstr(id)){sfx('error');return}spendResources(cost);GS.constructions.push({buildingId:b.id,targetLevel:nl,startTime:Date.now(),endTime:Date.now()+bTime(b.type,nl)*1000});sfx('queue');closeModal();showToast(`Upgrading ${CONFIG.BUILDINGS[b.type].name} → Lv.${nl}...`)}
+function demolB(id){const b=GS.buildings.find(x=>x.id===id);if(!b)return;const d=CONFIG.BUILDINGS[b.type];let ref={gold:0,food:0,iron:0};for(let lv=1;lv<=b.level;lv++){const c=bCost(b.type,lv);ref.gold+=c.gold;ref.food+=c.food;ref.iron+=c.iron}ref.gold=Math.floor(ref.gold*.3);ref.food=Math.floor(ref.food*.3);ref.iron=Math.floor(ref.iron*.3);GS.resources.gold=Math.min(GS.resources.gold+ref.gold,GS.storage.gold);GS.resources.food=Math.min(GS.resources.food+ref.food,GS.storage.food);GS.resources.iron=Math.min(GS.resources.iron+ref.iron,GS.storage.iron);GS.buildings=GS.buildings.filter(x=>x.id!==id);closeModal();showToast(`${d.name} demolished. 30% refund.`)}
+
+// ═══════════════════════════════════════
+// ARMY PANEL
+// ═══════════════════════════════════════
+let armyTab='troops';
+
+function showHospital(){armyTab='hospital';showArmy()}
+
+// Full Army panel with Roster / Train / Hospital tabs:
+function showArmy(){
+  let h=`<div class="modal-header"><span class="modal-title">⚔️ Army</span><div class="modal-close" onclick="closeModal()">✕</div></div>`;
+  h+=`<div class="tab-row"><div class="tab-btn ${armyTab==='troops'?'active':''}" onclick="armyTab='troops';sfx('tab');showArmy()">🪖 Roster</div><div class="tab-btn ${armyTab==='train'?'active':''}" onclick="armyTab='train';sfx('tab');showArmy()">📋 Train</div><div class="tab-btn ${armyTab==='hospital'?'active':''}" onclick="armyTab='hospital';sfx('tab');showArmy()">🏥 Hospital</div></div>`;
+
+  if(armyTab==='troops'){
+    const total=Object.values(GS.troops).reduce((a,b)=>a+b,0);
+    h+=`<div class="modal-section">${sr('Total Troops',`${total} / ${getTroopCap()}`,'var(--accent-red)')}${sr('Army Power',fN(Object.entries(GS.troops).reduce((s,[k,v])=>s+CONFIG.TROOPS[k].power*v,0)),'var(--accent-blue)')}</div>`;
+    Object.entries(CONFIG.TROOPS).forEach(([k,t])=>{const count=GS.troops[k]||0;const unlocked=getMaxBarracksLv()>=t.unlockBarracks;h+=`<div class="troop-card" style="${unlocked?'':'opacity:.4'}"><span class="troop-card-icon">${t.icon}</span><div class="troop-card-info"><div class="troop-card-name">${t.name}</div><div class="troop-card-stats"><span>⚔${t.atk}</span><span>🛡${t.def}</span><span>❤️${t.hp}</span><span>💨${t.speed}</span></div></div><span class="troop-card-count">${unlocked?count:'🔒'}</span></div>`});
+  }
+  else if(armyTab==='train'){
+    if(!hasBarracks()){h+=`<div class="modal-section" style="text-align:center;padding:16px;color:var(--text-secondary)">Build a <b>Barracks</b> to train troops!</div>`;openModal(h);return}
+    // Capacity bar
+    const cur=getTotalTroops(),cap=getTroopCap(),capPct=Math.min(100,(cur/cap)*100);
+    const capColor=capPct>=100?'var(--accent-red)':capPct>=80?'var(--accent-orange)':'var(--accent-green)';
+    h+=`<div class="modal-section" style="padding:8px 10px"><div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700;margin-bottom:4px"><span>🪖 Troops: ${cur} / ${cap}</span><span style="color:var(--text-dim)">Queue: ${GS.trainingQueue.length}</span></div><div class="queue-progress" style="height:6px"><div class="queue-progress-fill" style="width:${capPct}%;background:${capColor}"></div></div></div>`;
+    // Active training progress
+    if(GS.trainingQueue.length>0){
+      const tq=GS.trainingQueue[0],td=CONFIG.TROOPS[tq.type];const rem=Math.max(0,Math.ceil((tq.endTime-Date.now())/1000)),total=(tq.endTime-tq.startTime)/1000,prog=((total-rem)/total)*100;
+      h+=`<div class="queue-item tq" style="margin:0 0 4px"><span class="queue-icon">${td.icon}</span><div class="queue-info"><div class="queue-name">Now: ${td.name}</div><div class="queue-time tt">${fT(rem)}</div><div class="queue-progress"><div class="queue-progress-fill tf" style="width:${Math.min(100,prog)}%"></div></div></div></div>`;
+      // Queue summary by type
+      const qCounts={};GS.trainingQueue.forEach(q=>{qCounts[q.type]=(qCounts[q.type]||0)+1});
+      const qParts=Object.entries(qCounts).map(([k,v])=>`${CONFIG.TROOPS[k].icon}×${v}`);
+      if(qParts.length>0)h+=`<div style="font-family:'Oxanium',sans-serif;font-size:10px;color:var(--text-secondary);text-align:center;margin-bottom:6px">Queue: ${qParts.join('  ')}</div>`;
+    } else {
+      h+=`<div style="text-align:center;font-size:11px;color:var(--text-dim);padding:6px 0;margin-bottom:4px">No troops training. Pick a unit below!</div>`;
+    }
+    // Each troop type - clear training cards
+    const atCap=cur>=cap;
+    // Pre-calc per-type queue counts
+    const qByType={};GS.trainingQueue.forEach(q=>{qByType[q.type]=(qByType[q.type]||0)+1});
+    Object.entries(CONFIG.TROOPS).forEach(([k,t])=>{
+      const unlocked=getMaxBarracksLv()>=t.unlockBarracks;
+      const costR=1-(GS.research['eco_surplus']||0)*.05;
+      const cost={gold:Math.floor(t.cost.gold*costR),food:Math.floor(t.cost.food*costR),iron:Math.floor(t.cost.iron*costR)};
+      const aff=canAfford(cost);
+      const can1=aff&&!atCap&&unlocked;
+      const count=GS.troops[k]||0;
+      const inQ=qByType[k]||0;
+      const time=getTrainTime(k);
+
+      if(!unlocked){
+        h+=`<div class="troop-card" style="opacity:.35"><span class="troop-card-icon">🔒</span><div class="troop-card-info"><div class="troop-card-name">${t.name}</div><div class="troop-card-stats" style="color:var(--text-dim)">Requires Barracks Lv.${t.unlockBarracks}</div></div></div>`;
+        return;
+      }
+      h+=`<div style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:10px;padding:10px;margin-bottom:6px">`;
+      // Top row: icon, name, owned count, queued count
+      h+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:24px">${t.icon}</span><div style="flex:1"><div style="font-weight:700;font-size:13px">${t.name}</div><div style="font-family:'Oxanium',sans-serif;font-size:9px;color:var(--text-secondary);display:flex;gap:8px"><span>⚔${t.atk}</span><span>🛡${t.def}</span><span>❤️${t.hp}</span><span>⚡${t.power}pw</span></div></div><div style="text-align:right;font-family:'Oxanium',sans-serif"><div style="font-weight:700;font-size:14px;color:var(--accent-green)">${count}</div>${inQ>0?`<div style="font-size:9px;color:var(--accent-orange)">+${inQ} queued</div>`:''}</div></div>`;
+      // Cost row
+      h+=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;font-family:'Oxanium',sans-serif;font-size:10px">`;
+      h+=`<span style="color:var(--text-dim);min-width:32px">Cost:</span>`;
+      h+=`<span style="color:${GS.resources.gold>=cost.gold?'var(--gold-color)':'var(--accent-red)'}">💰${cost.gold}</span>`;
+      h+=`<span style="color:${GS.resources.food>=cost.food?'var(--food-color)':'var(--accent-red)'}">🌾${cost.food}</span>`;
+      h+=`<span style="color:${GS.resources.iron>=cost.iron?'var(--iron-color)':'var(--accent-red)'}">⛏️${cost.iron}</span>`;
+      h+=`<span style="color:var(--text-dim);margin-left:auto">🕐${fT(time)}</span>`;
+      h+=`</div>`;
+      // Action buttons - ×1, ×5, ×10
+      h+=`<div style="display:flex;gap:5px">`;
+      h+=`<button class="btn-primary" style="flex:2;padding:8px;font-size:12px;font-weight:700" ${can1?'':'disabled'} onclick="trainTroop('${k}');showArmy()">Train ×1</button>`;
+      h+=`<button style="flex:1;padding:8px;font-size:11px;font-weight:700;background:var(--accent-orange);border:none;border-radius:8px;color:#fff;cursor:pointer;opacity:${can1?'1':'.3'}" ${can1?'':'disabled'} onclick="bulkTrain('${k}',5);showArmy()">×5</button>`;
+      h+=`<button style="flex:1;padding:8px;font-size:11px;font-weight:700;background:var(--accent-red);border:none;border-radius:8px;color:#fff;cursor:pointer;opacity:${can1?'1':'.3'}" ${can1?'':'disabled'} onclick="bulkTrain('${k}',10);showArmy()">×10</button>`;
+      h+=`</div>`;
+      if(atCap)h+=`<div style="text-align:center;font-size:9px;color:var(--accent-red);margin-top:4px">⚠️ Army at capacity — upgrade Barracks</div>`;
+      h+=`</div>`;
+    });
+  }
+  else if(armyTab==='hospital'){
+    const tw=getTotalWounded(),hCap=getHospitalCap();
+    const hLv=GS.buildings.filter(b=>b.type==='hospital'&&!isConstr(b.id)).reduce((s,b)=>s+b.level,0);
+    h+=`<div class="modal-section">${sr('Wounded',`${tw}`,'var(--accent-red)')}${sr('Hospital Cap',`${hCap}`)}${sr('Heal Rate',hLv>0?`~${(CONFIG.HOSPITAL_HEAL_RATE*hLv*(1+getHeroBonus('healRate'))).toFixed(1)}/sec`:'No hospital!','var(--accent-green)')}</div>`;
+    if(tw===0)h+=`<div class="modal-section" style="text-align:center;padding:16px;color:var(--text-secondary)">No wounded troops. 🎉</div>`;
+    else{Object.entries(GS.wounded).forEach(([k,v])=>{if(v>0){const t=CONFIG.TROOPS[k];h+=`<div class="hospital-item"><span class="troop-card-icon">${t.icon}</span><div style="flex:1"><div style="font-weight:700;font-size:12px">${t.name}</div><div style="font-size:10px;color:var(--text-secondary)">Healing...</div></div><span style="font-family:'Oxanium',sans-serif;font-weight:700;color:var(--accent-red)">${v}</span></div>`}})}
+    if(!GS.buildings.some(b=>b.type==='hospital'))h+=`<div class="modal-section" style="text-align:center;color:var(--text-secondary);font-size:11px">Build a <b>Hospital</b> to heal wounded troops!</div>`;
+  }
+  openModal(h);
+}
+
+function bulkTrain(type,count){let trained=0;for(let i=0;i<count;i++){if(trainTroop(type))trained++;else break}if(trained>1){const td=CONFIG.TROOPS[type];showToast(`${td.icon} ×${trained} queued!`)}}
+
+// ═══════════════════════════════════════
+// CAMPAIGN & BATTLE
+// ═══════════════════════════════════════
+function showCampaign(){sfx('tap');
+  let h=`<div class="modal-header"><span class="modal-title">🗺️ Campaign</span><div class="modal-close" onclick="closeModal()">✕</div></div>`;
+  const totalT=Object.values(GS.troops).reduce((a,b)=>a+b,0);
+  h+=`<div class="modal-section">${sr('Your Army',`${totalT} troops`,'var(--accent-red)')}${sr('Cleared',`${GS.campaignCleared.length} / ${CONFIG.CAMPAIGN.length}`,'var(--accent-green)')}</div>`;
+
+  CONFIG.CAMPAIGN.forEach(m=>{
+    const cleared=GS.campaignCleared.includes(m.id);
+    const prevCleared=m.id===1||GS.campaignCleared.includes(m.id-1);
+    const hqOk=GS.hqLevel>=m.reqHQ;
+    const locked=!prevCleared||!hqOk;
+    let cls='campaign-node';let badge='';
+    if(cleared){cls+=' cleared';badge=`<span class="campaign-node-badge badge-done">✅</span>`}
+    else if(locked){cls+=' locked';badge=`<span class="campaign-node-badge badge-locked">${!hqOk?`HQ ${m.reqHQ}`:'🔒'}</span>`}
+    else{badge=`<span class="campaign-node-badge" style="background:#ef444422;color:var(--accent-red)">ATTACK</span>`}
+    h+=`<div class="${cls}" onclick="${!locked?`showMissionDetail(${m.id})`:''}">`+
+      `<span class="campaign-node-num">${m.id}</span><div class="campaign-node-info"><div class="campaign-node-name">${m.name}</div><div class="campaign-node-desc">${m.desc}</div></div>${badge}</div>`;
+  });
+
+  // Battle reports link
+  if(GS.battleReports.length>0)h+=`<button class="btn-primary" style="margin-top:8px" onclick="showReports()">📋 Battle Reports (${GS.battleReports.length})</button>`;
+  openModal(h);
+}
+
+function showMissionDetail(mId){sfx('tap');
+  const m=CONFIG.CAMPAIGN.find(x=>x.id===mId);if(!m)return;
+  const totalP=Object.values(GS.troops).reduce((a,b)=>a+b,0);
+  const ps=calcArmyStrength(GS.troops,true);
+  const es=calcArmyStrength(m.enemy,false);
+
+  let h=`<div class="modal-header"><span class="modal-title">🗺️ Mission ${m.id}</span><div class="modal-close" onclick="closeModal()">✕</div></div>`;
+  h+=`<div class="modal-section"><div style="font-size:16px;font-weight:700;margin-bottom:4px">${m.name}</div><p style="color:var(--text-secondary);font-size:12px">${m.desc}</p></div>`;
+
+  // Enemy forces
+  h+=`<div class="modal-section"><div class="modal-section-title">Enemy Forces</div>`;
+  Object.entries(m.enemy).forEach(([k,v])=>{const t=CONFIG.TROOPS[k];if(t)h+=sr(`${t.icon} ${t.name}`,`×${v}`,'var(--accent-red)')});
+  h+=sr('Enemy Strength',fN(Math.floor(es.total)),'var(--accent-red)');
+  h+=`</div>`;
+
+  // Your forces
+  h+=`<div class="modal-section"><div class="modal-section-title">Your Forces</div>`;
+  Object.entries(GS.troops).forEach(([k,v])=>{if(v>0){const t=CONFIG.TROOPS[k];h+=sr(`${t.icon} ${t.name}`,`×${v}`,'var(--accent-blue)')}});
+  if(totalP===0)h+=`<div style="text-align:center;color:var(--text-dim);font-size:11px;padding:4px">No troops!</div>`;
+  h+=sr('Your Strength',fN(Math.floor(ps.total)),'var(--accent-blue)');
+  const ratio=es.total>0?(ps.total/es.total*100).toFixed(0):999;
+  const ratioColor=ratio>=120?'var(--accent-green)':ratio>=80?'var(--accent-orange)':'var(--accent-red)';
+  h+=sr('Advantage',`${ratio}%`,ratioColor);
+  h+=`</div>`;
+
+  // Rewards
+  h+=`<div class="modal-section"><div class="modal-section-title">Rewards</div>`;
+  h+=`<div class="cost-row">${m.reward.gold?`<span class="cost-item" style="color:var(--gold-color)">💰${fN(m.reward.gold)}</span>`:''}${m.reward.food?`<span class="cost-item" style="color:var(--food-color)">🌾${fN(m.reward.food)}</span>`:''}${m.reward.iron?`<span class="cost-item" style="color:var(--iron-color)">⛏️${fN(m.reward.iron)}</span>`:''}${m.reward.xp?`<span class="cost-item" style="color:var(--xp-color)">⭐${m.reward.xp}</span>`:''}</div></div>`;
+
+  h+=`<button class="btn-red" ${totalP>0?'':'disabled'} onclick="attackMission(${m.id})">${totalP>0?'⚔️ ATTACK!':'No Troops!'}</button>`;
+  h+=`<button style="margin-top:5px;width:100%;padding:7px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:8px;color:var(--text-secondary);font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;cursor:pointer;text-transform:uppercase" onclick="showCampaign()">← Back</button>`;
+  openModal(h);
+}
+
+function showBattleReport(report){sfx('tap');
+  let h=`<div class="modal-header"><span class="modal-title">${report.win?'🏆 Victory!':'💀 Defeat'}</span><div class="modal-close" onclick="closeModal()">✕</div></div>`;
+  h+=`<div class="modal-section"><div style="font-weight:700;font-size:14px">${report.missionName}</div></div>`;
+
+  // Battle log
+  h+=`<div class="battle-log">${report.log.join('<br>')}</div>`;
+
+  // Losses
+  h+=`<div class="modal-section"><div class="modal-section-title">Casualties</div>`;
+  let anyLoss=false;
+  Object.entries(report.losses).forEach(([k,v])=>{if(v>0){anyLoss=true;const t=CONFIG.TROOPS[k];const w=report.wounded[k]||0;h+=sr(`${t.icon} ${t.name} lost`,`${v} (${w} wounded)`,'var(--accent-red)')}});
+  if(!anyLoss)h+=`<div style="text-align:center;color:var(--accent-green);font-size:11px">No casualties!</div>`;
+  h+=`</div>`;
+
+  if(report.win&&report.reward){h+=`<div class="modal-section"><div class="modal-section-title">Loot Gained</div><div class="cost-row">${report.reward.gold?`<span class="cost-item" style="color:var(--gold-color)">💰${fN(report.reward.gold)}</span>`:''}${report.reward.food?`<span class="cost-item" style="color:var(--food-color)">🌾${fN(report.reward.food)}</span>`:''}${report.reward.iron?`<span class="cost-item" style="color:var(--iron-color)">⛏️${fN(report.reward.iron)}</span>`:''}${report.reward.xp?`<span class="cost-item" style="color:var(--xp-color)">⭐${report.reward.xp}</span>`:''}</div></div>`}
+
+  h+=`<button class="btn-primary" onclick="showCampaign()">← Back to Campaign</button>`;
+  openModal(h);
+}
+
+function showReports(){sfx('tap');
+  let h=`<div class="modal-header"><span class="modal-title">📋 Battle Reports</span><div class="modal-close" onclick="closeModal()">✕</div></div>`;
+  GS.battleReports.forEach((r,i)=>{
+    const timeAgo=fT(Math.floor((Date.now()-r.time)/1000))+' ago';
+    h+=`<div class="campaign-node ${r.win?'cleared':''}" onclick="showBattleReport(GS.battleReports[${i}])">
+      <span class="campaign-node-num">${r.win?'✅':'❌'}</span><div class="campaign-node-info">
+      <div class="campaign-node-name">${r.missionName}</div>
+      <div class="campaign-node-desc">${timeAgo}</div></div></div>`;
+  });
+  h+=`<button class="btn-primary" style="margin-top:8px" onclick="showCampaign()">← Campaign</button>`;
+  openModal(h);
+}
+
+// ═══════════════════════════════════════
+// RESEARCH (from Stage 2)
+// ═══════════════════════════════════════
+let currentBranch='economy';
+function showResearch(){sfx('tap');
+  if(!hasLab()){openModal(`<div class="modal-header"><span class="modal-title">🔬 Research</span><div class="modal-close" onclick="closeModal()">✕</div></div><div class="modal-section" style="text-align:center;padding:16px"><p style="font-size:24px;margin-bottom:6px">🔬</p><p style="color:var(--text-secondary);font-size:12px">Build a <b>Research Lab</b> first!</p></div>`);return}
+  let h=`<div class="modal-header"><span class="modal-title">🔬 Tech Tree</span><div class="modal-close" onclick="closeModal()">✕</div></div>`;
+  if(GS.activeResearch){const ar=GS.activeResearch,t=findTech(ar.techId);const rem=Math.max(0,Math.ceil((ar.endTime-Date.now())/1000)),total=(ar.endTime-ar.startTime)/1000,prog=((total-rem)/total)*100;h+=`<div class="queue-item rq"><span class="queue-icon">${t?t.icon:'🔬'}</span><div class="queue-info"><div class="queue-name">${t?t.name:'Research'} → Lv.${ar.targetLevel}</div><div class="queue-time rt">${fT(rem)}</div><div class="queue-progress"><div class="queue-progress-fill rf" style="width:${Math.min(100,prog)}%"></div></div></div></div>`}
+  h+=`<div class="tech-branch-tabs">`;
+  for(const[key,br]of Object.entries(CONFIG.TECH_TREE))h+=`<div class="tech-tab ${currentBranch===key?'active':''}" onclick="currentBranch='${key}';showResearch()">${br.icon} ${br.name}</div>`;
+  h+=`</div>`;
+  CONFIG.TECH_TREE[currentBranch].techs.forEach(t=>{const curLv=GS.research[t.id]||0;const maxed=curLv>=t.maxLevel;const unlocked=isTechUnlocked(t);const isA=GS.activeResearch&&GS.activeResearch.techId===t.id;let cls='tech-node',badge='';
+  if(maxed){cls+=' completed';badge='<span class="tech-node-badge badge-done">MAX</span>'}else if(isA){cls+=' researching';badge='<span class="tech-node-badge badge-active">ACTIVE</span>'}else if(!unlocked){cls+=' locked';badge='<span class="tech-node-badge badge-locked">🔒</span>'}else badge=`<span class="tech-node-badge" style="background:#a855f722;color:var(--accent-purple)">${curLv}/${t.maxLevel}</span>`;
+  h+=`<div class="${cls}" onclick="${!maxed&&unlocked&&!isA?`showTechDetail('${t.id}')`:''}"><span class="tech-node-icon">${t.icon}</span><div class="tech-node-info"><div class="tech-node-name">${t.name}</div><div class="tech-node-desc">${t.desc}</div></div>${badge}</div>`});
+  openModal(h);
+}
+function showTechDetail(tid){sfx("tap");const t=findTech(tid);if(!t)return;const curLv=GS.research[tid]||0,nl=curLv+1;if(nl>t.maxLevel)return;const cost=techCost(t,nl),time=techTime(t,nl),aff=canAfford(cost),canS=!GS.activeResearch&&aff;
+  let h=`<div class="modal-header"><span class="modal-title">${t.icon} ${t.name}</span><div class="modal-close" onclick="closeModal()">✕</div></div><div class="modal-section">${sr('Level',`${curLv}/${t.maxLevel}`,'var(--accent-purple)')}<p style="color:var(--text-secondary);font-size:11px;margin-top:4px">${t.desc}</p>${sr('XP',`+${t.xp*nl}`,'var(--xp-color)')}</div><div class="modal-section"><div class="modal-section-title">Cost Lv.${nl}</div><div class="cost-row" style="margin-bottom:4px">${costHtml(cost)}</div>${sr('Time','🕐 '+fT(time))}</div>`;
+  h+=GS.activeResearch?`<div class="modal-section" style="text-align:center;color:var(--text-secondary);font-size:11px">Another research active.</div>`:`<button class="btn-purple" ${canS?'':'disabled'} onclick="startResearch('${tid}')">${canS?`🔬 Research Lv.${nl}`:aff?'Slot Busy':'💰 Not Enough'}</button>`;
+  h+=`<button style="margin-top:5px;width:100%;padding:7px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:8px;color:var(--text-secondary);font-family:'Rajdhani',sans-serif;font-size:11px;cursor:pointer;text-transform:uppercase;font-weight:600" onclick="showResearch()">← Back</button>`;
+  openModal(h);
+}
+function startResearch(tid){if(GS.activeResearch)return;const t=findTech(tid);if(!t)return;const nl=(GS.research[tid]||0)+1;if(nl>t.maxLevel)return;const cost=techCost(t,nl);if(!canAfford(cost)){sfx('error');return}spendResources(cost);GS.activeResearch={techId:tid,targetLevel:nl,startTime:Date.now(),endTime:Date.now()+techTime(t,nl)*1000};sfx('queue');closeModal();showToast(`Researching ${t.name}...`,'toast-purple')}
+
+// ═══════════════════════════════════════
+// QUESTS (updated with combat quests)
+// ═══════════════════════════════════════
+function getQuestProgress(q){
+  switch(q.type){
+    case 'build':return{cur:countB(q.target),max:q.count};
+    case 'buildCount':return{cur:GS.buildings.filter(b=>!b.isHQ&&b.level>0).length,max:q.count};
+    case 'buildLevel':{const b=GS.buildings.find(x=>x.type===q.target);return{cur:b?b.level:0,max:q.level}}
+    case 'researchCount':return{cur:GS.stats.researchDone,max:q.count};
+    case 'power':return{cur:GS.totalPower,max:q.count};
+    case 'upgradeCount':return{cur:GS.stats.upgradesDone,max:q.count};
+    case 'cmdLevel':return{cur:GS.commander.level,max:q.level};
+    case 'trainCount':return{cur:GS.stats.troopsTrained,max:q.count};
+    case 'battleWins':return{cur:GS.stats.battlesWon,max:q.count};
+    case 'campaignCleared':return{cur:GS.campaignCleared.length,max:q.count};
+    case 'tilesOccupied':return{cur:GS.occupiedTiles.length,max:q.count};
+    case 'npcsDefeated':return{cur:GS.stats.npcsDefeated||0,max:q.count};
+    default:return{cur:0,max:1};
+  }
+}
+function getClaimableQuests(){return CONFIG.QUESTS.filter(q=>{if(GS.quests[q.id]==='completed')return false;const p=getQuestProgress(q);return p.cur>=p.max})}
+
+function showQuests(){sfx('tap');
+  let h=`<div class="modal-header"><span class="modal-title">📜 Missions</span><div class="modal-close" onclick="closeModal()">✕</div></div>`;
+  // Daily
+  h+=`<div class="modal-section"><div class="modal-section-title">📅 Daily Login (Day ${GS.dailyLogin.streak})</div><div class="daily-grid">`;
+  CONFIG.DAILY_REWARDS.forEach((dr,i)=>{const dn=i+1;const claimed=GS.dailyLogin.history.includes(dn);const isToday=dn===((GS.dailyLogin.streak%7)+1)&&canClaimDaily();let cls='daily-day';if(claimed)cls+=' claimed';else if(isToday)cls+=' today';else cls+=' future';h+=`<div class="${cls}" ${isToday?`onclick="claimDaily(${dn})"`:''}><div class="daily-day-num">${dn}</div><div class="daily-day-icon">${dr.icon}</div></div>`});
+  h+=`</div></div>`;
+
+  const avail=CONFIG.QUESTS.filter(q=>GS.quests[q.id]!=='completed');
+  const done=CONFIG.QUESTS.filter(q=>GS.quests[q.id]==='completed');
+  if(avail.length>0){h+=`<div class="modal-section-title" style="padding:2px">Active</div>`;avail.forEach(q=>{const p=getQuestProgress(q),pct=Math.min(100,(p.cur/p.max)*100),cl=p.cur>=p.max;h+=`<div class="quest-item ${cl?'completable':''}"><div class="quest-header"><div class="quest-name">${q.name}</div><div class="quest-reward">${q.reward.gold?'💰'+q.reward.gold:''}${q.reward.xp?' ⭐'+q.reward.xp:''}</div></div><div class="quest-desc">${q.desc}</div><div class="quest-progress-bar"><div class="quest-progress-fill" style="width:${pct}%"></div></div><div class="quest-progress-text">${fN(Math.min(p.cur,p.max))}/${fN(p.max)}</div>${cl?`<button class="quest-claim-btn" onclick="claimQuest('${q.id}')">🎁 Claim</button>`:''}</div>`})}
+  if(done.length>0){h+=`<div class="modal-section-title" style="padding:2px;margin-top:6px;color:var(--text-dim)">Done (${done.length})</div>`;done.forEach(q=>{h+=`<div class="quest-item" style="opacity:.3"><div class="quest-header"><div class="quest-name">✅ ${q.name}</div></div></div>`})}
+  openModal(h);
+}
+function claimQuest(qid){const q=CONFIG.QUESTS.find(x=>x.id===qid);if(!q||GS.quests[qid]==='completed')return;const p=getQuestProgress(q);if(p.cur<p.max)return;GS.quests[qid]='completed';if(q.reward.gold)GS.resources.gold=Math.min(GS.resources.gold+q.reward.gold,GS.storage.gold);if(q.reward.food)GS.resources.food=Math.min(GS.resources.food+q.reward.food,GS.storage.food);if(q.reward.iron)GS.resources.iron=Math.min(GS.resources.iron+q.reward.iron,GS.storage.iron);if(q.reward.xp)addXP(q.reward.xp);sfx('claim');showToast(`Mission: ${q.name}!`,'toast-gold');showQuests()}
+
+// Daily login
+function canClaimDaily(){if(!GS.dailyLogin.lastClaim)return true;return new Date(GS.dailyLogin.lastClaim).toDateString()!==new Date().toDateString()}
+function checkDailyLogin(){if(GS.dailyLogin.lastClaim){const h=(Date.now()-GS.dailyLogin.lastClaim)/(1000*60*60);if(h>48){GS.dailyLogin.streak=0;GS.dailyLogin.history=[]}}if(canClaimDaily())setTimeout(()=>showToast('Daily reward available! 📜','toast-gold'),1500)}
+function claimDaily(dn){if(!canClaimDaily())return;const dr=CONFIG.DAILY_REWARDS[dn-1];if(!dr)return;if(dr.reward.gold)GS.resources.gold=Math.min(GS.resources.gold+dr.reward.gold,GS.storage.gold);if(dr.reward.food)GS.resources.food=Math.min(GS.resources.food+dr.reward.food,GS.storage.food);if(dr.reward.iron)GS.resources.iron=Math.min(GS.resources.iron+dr.reward.iron,GS.storage.iron);if(dr.reward.xp)addXP(dr.reward.xp);addGems(CONFIG.GEM_SOURCES.dailyLogin);GS.dailyLogin.streak++;GS.dailyLogin.lastClaim=Date.now();if(!GS.dailyLogin.history.includes(dn))GS.dailyLogin.history.push(dn);if(GS.dailyLogin.streak>=7){GS.dailyLogin.streak=0;GS.dailyLogin.history=[]}showToast(`Day ${dn}: ${dr.label}!`,'toast-gold');sfx('claim');showQuests()}
+
+// Commander
+function showCommander(){sfx('tap');const c=GS.commander,need=xpForLevel(c.level),pct=Math.min(100,(c.xp/need)*100);let bonuses=[];Object.entries(GS.research).forEach(([tid,lv])=>{if(lv>0){const t=findTech(tid);if(t)bonuses.push({name:t.name,level:lv,icon:t.icon})}});
+  let h=`<div class="modal-header"><span class="modal-title">🎖️ Commander</span><div class="modal-close" onclick="closeModal()">✕</div></div><div class="modal-section" style="text-align:center"><div class="commander-avatar">🎖️</div><div style="font-family:'Oxanium',sans-serif;font-size:18px;font-weight:700">${c.name}</div><div style="font-size:12px;color:var(--accent-purple)">Level ${c.level}</div><div class="xp-bar-container"><div class="xp-bar-fill" style="width:${pct}%"></div></div><div style="font-family:'Oxanium',sans-serif;font-size:10px;color:var(--text-secondary);margin-top:3px">${c.xp}/${need} XP</div></div>`;
+  h+=`<div class="modal-section">${sr('Power Bonus',`+${c.level*10}`,'var(--accent-blue)')}${sr('Total Power',`⚡ ${fN(GS.totalPower)}`,'var(--accent-blue)')}${sr('Battles Won',GS.stats.battlesWon,'var(--accent-green)')}${sr('Battles Lost',GS.stats.battlesLost,'var(--accent-red)')}</div>`;
+  if(bonuses.length>0){h+=`<div class="modal-section"><div class="modal-section-title">Research</div>`;bonuses.forEach(b=>{h+=sr(`${b.icon} ${b.name}`,`Lv.${b.level}`,'var(--accent-purple)')});h+=`</div>`}
+  openModal(h);
+}
+
+// Queue (updated)
+function showQueue(){sfx('tap');
+  let h=`<div class="modal-header"><span class="modal-title">🔨 Active Timers</span><div class="modal-close" onclick="closeModal()">✕</div></div>`;
+  const total=GS.constructions.length+GS.trainingQueue.length+(GS.activeResearch?1:0);
+  if(total===0)h+=`<div class="modal-section" style="text-align:center;color:var(--text-secondary);padding:16px">No active timers.</div>`;
+  GS.constructions.forEach(c=>{const b=GS.buildings.find(x=>x.id===c.buildingId);if(!b)return;const d=CONFIG.BUILDINGS[b.type];const rem=tRem(c),total2=(c.endTime-c.startTime)/1000,prog=((total2-rem)/total2)*100;h+=`<div class="queue-item"><span class="queue-icon">${d.icon}</span><div class="queue-info"><div class="queue-name">${d.name} → Lv.${c.targetLevel}</div><div class="queue-time">${fT(rem)}</div><div class="queue-progress"><div class="queue-progress-fill" style="width:${Math.min(100,prog)}%"></div></div></div></div>`});
+  if(GS.activeResearch){const ar=GS.activeResearch,t=findTech(ar.techId);const rem=Math.max(0,Math.ceil((ar.endTime-Date.now())/1000)),total2=(ar.endTime-ar.startTime)/1000,prog=((total2-rem)/total2)*100;h+=`<div class="queue-item rq"><span class="queue-icon">${t?t.icon:'🔬'}</span><div class="queue-info"><div class="queue-name">${t?t.name:'Research'} → Lv.${ar.targetLevel}</div><div class="queue-time rt">${fT(rem)}</div><div class="queue-progress"><div class="queue-progress-fill rf" style="width:${Math.min(100,prog)}%"></div></div></div></div>`}
+  if(GS.trainingQueue.length>0){const tq=GS.trainingQueue[0],td=CONFIG.TROOPS[tq.type];const rem=Math.max(0,Math.ceil((tq.endTime-Date.now())/1000)),total2=(tq.endTime-tq.startTime)/1000,prog=((total2-rem)/total2)*100;h+=`<div class="queue-item tq"><span class="queue-icon">${td.icon}</span><div class="queue-info"><div class="queue-name">${td.name} (${GS.trainingQueue.length} total)</div><div class="queue-time tt">${fT(rem)}</div><div class="queue-progress"><div class="queue-progress-fill tf" style="width:${Math.min(100,prog)}%"></div></div></div></div>`}
+  GS.marches.forEach(m=>{const rem=Math.max(0,Math.ceil((m.endTime-Date.now())/1000)),total2=(m.endTime-m.startTime)/1000,prog=((total2-rem)/total2)*100;h+=`<div class="march-item"><span class="march-icon">${m.type==='attack'?'⚔️':'🚩'}</span><div class="march-info"><div style="font-weight:700;font-size:11px">${m.type==='attack'?'Attack':'Occupy'} → (${m.destX},${m.destY})</div><div class="queue-progress" style="margin-top:3px"><div class="queue-progress-fill" style="width:${Math.min(100,prog)}%;background:var(--accent-cyan)"></div></div></div><span class="march-time">${fT(rem)}</span></div>`});
+  openModal(h);
+}
+
+// Stats
+function showStats(){sfx('tap');const rates=getResourceRates(),pt=Math.floor((Date.now()-GS.stats.sessionStart)/1000);
+  let h=`<div class="modal-header"><span class="modal-title">📊 Statistics</span><div class="modal-close" onclick="closeModal()">✕</div></div>`;
+  h+=`<div class="modal-section"><div class="modal-section-title">Overview</div>${sr('Power',`⚡ ${fN(GS.totalPower)}`,'var(--accent-blue)')}${sr('HQ',GS.hqLevel)}${sr('Commander',`Lv.${GS.commander.level}`,'var(--xp-color)')}${sr('Buildings',GS.buildings.filter(b=>b.level>0).length)}${sr('Research',`${Object.keys(GS.research).length} techs`,'var(--accent-purple)')}${sr('Troops',Object.values(GS.troops).reduce((a,b)=>a+b,0),'var(--accent-red)')}</div>`;
+  h+=`<div class="modal-section"><div class="modal-section-title">Production/sec</div>${sr('💰 Gold',`+${rates.gold.toFixed(1)}`,'var(--gold-color)')}${sr('🌾 Food',`+${rates.food.toFixed(1)}`,'var(--food-color)')}${sr('⛏️ Iron',`+${rates.iron.toFixed(1)}`,'var(--iron-color)')}</div>`;
+  h+=`<div class="modal-section"><div class="modal-section-title">Combat</div>${sr('Battles Won',GS.stats.battlesWon,'var(--accent-green)')}${sr('Battles Lost',GS.stats.battlesLost,'var(--accent-red)')}${sr('Campaign',`${GS.campaignCleared.length}/${CONFIG.CAMPAIGN.length}`)}${sr('Troops Trained',GS.stats.troopsTrained)}</div>`;
+  h+=`<div class="modal-section"><div class="modal-section-title">World Map</div>${sr('Tiles Occupied',GS.occupiedTiles.length,'var(--accent-green)')}${sr('NPCs Defeated',GS.stats.npcsDefeated||0,'var(--accent-red)')}${sr('Active Marches',`${GS.marches.length}/${CONFIG.MAX_MARCHES}`,'var(--accent-cyan)')}${sr('Explored',`${GS.fogRevealed.length} tiles`)}</div>`;
+  h+=`<div class="modal-section"><div class="modal-section-title">Economy</div>${sr('💎 Gems',GS.gems,'var(--gem-color)')}${sr('Gems Earned',GS.stats.gemsEarned||0)}${sr('Gems Spent',GS.stats.gemsSpent||0)}${sr('🦸 Hero',GS.equippedHero?CONFIG.HEROES.find(x=>x.id===GS.equippedHero)?.name||'—':'None','var(--accent-purple)')}${sr('🏰 Alliance',GS.alliance.name?`[${GS.alliance.tag}] ${GS.alliance.name}`:'None','var(--accent-cyan)')}</div>`;
+  h+=`<div class="modal-section"><div class="modal-section-title">Lifetime</div>${sr('Built',GS.stats.buildingsBuilt)}${sr('Upgrades',GS.stats.upgradesDone)}${sr('Session',fT(pt))}${sr('Login Streak',`${GS.dailyLogin.streak} days`)}</div>`;
+  h+=`<button class="btn-primary" style="margin-top:6px" onclick="closeModal();showSettings()">⚙️ Settings</button>`;
+  openModal(h);
+}
+
+// ═══════════════════════════════════════
+// STAGE 4: WORLD MAP
+// ═══════════════════════════════════════
+let mapCam={x:20,y:20,zoom:1};
+let mapDragging=false,mapDragStart={x:0,y:0},mapCamStart={x:0,y:0};
+let mapCanvas,mapCtx;
+let nextMarchId=1;
+
+function generateWorldMap(){
+  const S=CONFIG.MAP_SIZE, seed=GS.mapSeed||Date.now();
+  GS.mapSeed=seed;
+  const rng=(()=>{let s=seed;return()=>{s=(s*16807)%2147483647;return(s-1)/2147483646}})();
+  const map=[];
+  for(let y=0;y<S;y++){map[y]=[];for(let x=0;x<S;x++){
+    const r=rng();const cx=S/2,cy=S/2,dist=Math.sqrt((x-cx)**2+(y-cy)**2);
+    let t='plains';
+    if(x===cx&&y===cy)t='plains'; // home
+    else if(r<0.12)t='forest';
+    else if(r<0.18)t='mountain';
+    else if(r<0.21)t='lake';
+    else if(r<0.27&&dist>3)t='gold_deposit';
+    else if(r<0.34&&dist>2)t='food_field';
+    else if(r<0.40&&dist>3)t='iron_deposit';
+    map[y][x]=t;
+  }}
+  // Place NPC bases
+  const npcs=[];
+  CONFIG.NPC_BASES.forEach(npc=>{
+    for(let attempt=0;attempt<50;attempt++){
+      const angle=rng()*Math.PI*2;
+      const dist=npc.minDist+rng()*(npc.maxDist-npc.minDist);
+      const nx=Math.floor(S/2+Math.cos(angle)*dist);
+      const ny=Math.floor(S/2+Math.sin(angle)*dist);
+      if(nx<1||nx>=S-1||ny<1||ny>=S-1)continue;
+      if(npcs.some(n=>Math.abs(n.x-nx)<2&&Math.abs(n.y-ny)<2))continue;
+      map[ny][nx]='plains';
+      npcs.push({id:'npc_'+npcs.length,npcId:npc.id,x:nx,y:ny,defeated:false});
+      break;
+    }
+  });
+  GS.worldMap=map;GS.mapNPCs=npcs;
+  // Init fog - reveal around home
+  GS.fogRevealed=[];
+  revealFog(S/2,S/2,CONFIG.BASE_VISION);
+}
+
+function revealFog(cx,cy,radius){
+  const S=CONFIG.MAP_SIZE;
+  for(let dy=-radius;dy<=radius;dy++)for(let dx=-radius;dx<=radius;dx++){
+    const x=Math.floor(cx)+dx,y=Math.floor(cy)+dy;
+    if(x<0||x>=S||y<0||y>=S)continue;
+    if(dx*dx+dy*dy>radius*radius)continue;
+    const key=`${x},${y}`;
+    if(!GS.fogRevealed.includes(key))GS.fogRevealed.push(key);
+  }
+}
+function isFogRevealed(x,y){return GS.fogRevealed.includes(`${x},${y}`)}
+
+function initMapCanvas(){
+  mapCanvas=document.getElementById('map-canvas');
+  mapCtx=mapCanvas.getContext('2d');
+  resizeMapCanvas();
+  // Mouse events
+  mapCanvas.addEventListener('mousedown',mapMouseDown);
+  mapCanvas.addEventListener('mousemove',mapMouseMove);
+  mapCanvas.addEventListener('mouseup',mapMouseUp);
+  mapCanvas.addEventListener('wheel',mapWheel);
+  // Touch events
+  mapCanvas.addEventListener('touchstart',mapTouchStart,{passive:false});
+  mapCanvas.addEventListener('touchmove',mapTouchMove,{passive:false});
+  mapCanvas.addEventListener('touchend',mapTouchEnd);
+  mapCanvas.addEventListener('click',mapClick);
+  window.addEventListener('resize',()=>{if(document.getElementById('world-map-screen').classList.contains('active'))setTimeout(resizeMapCanvas,50)});
+}
+function resizeMapCanvas(){if(!mapCanvas)return;const p=mapCanvas.parentElement;mapCanvas.width=p.clientWidth;mapCanvas.height=p.clientHeight-document.getElementById('map-topbar').offsetHeight-document.getElementById('map-bottombar').offsetHeight}
+
+function openWorldMap(){
+  if(!GS.worldMap)generateWorldMap();
+  const el=document.getElementById('world-map-screen');
+  el.classList.add('active');
+  if(!mapCanvas)initMapCanvas();
+  setTimeout(()=>{resizeMapCanvas();renderMap()},50);
+  sfx('open');
+}
+function closeWorldMap(){document.getElementById('world-map-screen').classList.remove('active');sfx('close')}
+
+function renderMap(){
+  if(!mapCtx||!GS.worldMap)return;
+  const W=mapCanvas.width,H=mapCanvas.height,S=CONFIG.MAP_SIZE;
+  const tileSize=CONFIG.TILE_PX*mapCam.zoom;
+  mapCtx.fillStyle='#050810';mapCtx.fillRect(0,0,W,H);
+
+  const ox=W/2-mapCam.x*tileSize, oy=H/2-mapCam.y*tileSize;
+  const startX=Math.max(0,Math.floor(-ox/tileSize)), startY=Math.max(0,Math.floor(-oy/tileSize));
+  const endX=Math.min(S,Math.ceil((W-ox)/tileSize)), endY=Math.min(S,Math.ceil((H-oy)/tileSize));
+
+  for(let y=startY;y<endY;y++)for(let x=startX;x<endX;x++){
+    const px=ox+x*tileSize, py=oy+y*tileSize;
+    if(!isFogRevealed(x,y)){mapCtx.fillStyle='#08080f';mapCtx.fillRect(px,py,tileSize-1,tileSize-1);continue}
+    const t=GS.worldMap[y][x],td=CONFIG.TILE_TYPES[t];
+    mapCtx.fillStyle=td?td.color:'#0a0c10';mapCtx.fillRect(px,py,tileSize-1,tileSize-1);
+    // Border
+    mapCtx.strokeStyle='#1a1f2e44';mapCtx.strokeRect(px,py,tileSize-1,tileSize-1);
+    // Occupied?
+    if(GS.occupiedTiles.some(ot=>ot.x===x&&ot.y===y)){mapCtx.strokeStyle='#22c55e88';mapCtx.lineWidth=2;mapCtx.strokeRect(px+1,py+1,tileSize-3,tileSize-3);mapCtx.lineWidth=1}
+    // Icons
+    if(tileSize>=20){
+      const cx2=S/2;
+      if(x===cx2&&y===cx2){drawTileIcon(px,py,tileSize,'🏠',true)}
+      else{
+        const npc=GS.mapNPCs.find(n=>n.x===x&&n.y===y);
+        if(npc){const nd=CONFIG.NPC_BASES.find(n=>n.id===npc.npcId);drawTileIcon(px,py,tileSize,nd?nd.icon:'🏚️',false,npc.defeated?0.4:1)}
+        else if(td&&td.icon!=='·'&&tileSize>=28){drawTileIcon(px,py,tileSize,td.icon)}
+      }
+    }
+  }
+
+  // Draw marches
+  GS.marches.forEach(m=>{
+    const cx2=S/2;
+    const sx=ox+cx2*tileSize+tileSize/2, sy=oy+cx2*tileSize+tileSize/2;
+    const ex=ox+m.destX*tileSize+tileSize/2, ey=oy+m.destY*tileSize+tileSize/2;
+    const elapsed=(Date.now()-m.startTime)/(m.endTime-m.startTime);
+    const prog=m.type==='return'?1-Math.min(1,elapsed):Math.min(1,elapsed);
+    const mx2=sx+(ex-sx)*prog, my2=sy+(ey-sy)*prog;
+    mapCtx.strokeStyle='#06b6d488';mapCtx.setLineDash([4,4]);mapCtx.beginPath();mapCtx.moveTo(sx,sy);mapCtx.lineTo(ex,ey);mapCtx.stroke();mapCtx.setLineDash([]);
+    mapCtx.fillStyle='#06b6d4';mapCtx.beginPath();mapCtx.arc(mx2,my2,4*mapCam.zoom,0,Math.PI*2);mapCtx.fill();
+  });
+
+  // Coord display
+  document.getElementById('map-coords').textContent=`${Math.floor(mapCam.x)}, ${Math.floor(mapCam.y)} | Z:${mapCam.zoom.toFixed(1)}x`;
+  requestAnimationFrame(()=>{if(document.getElementById('world-map-screen').classList.contains('active'))renderMap()});
+}
+
+function drawTileIcon(px,py,size,emoji,highlight,alpha){
+  if(alpha!==undefined)mapCtx.globalAlpha=alpha;
+  const fs=Math.max(8,size*0.5);mapCtx.font=`${fs}px serif`;mapCtx.textAlign='center';mapCtx.textBaseline='middle';
+  mapCtx.fillText(emoji,px+size/2,py+size/2);
+  if(highlight){mapCtx.strokeStyle='#3a8bfdaa';mapCtx.lineWidth=2;mapCtx.strokeRect(px+1,py+1,size-3,size-3);mapCtx.lineWidth=1}
+  mapCtx.globalAlpha=1;
+}
+
+// Map interaction
+function mapMouseDown(e){mapDragging=true;mapDragStart={x:e.clientX,y:e.clientY};mapCamStart={...mapCam}}
+function mapMouseMove(e){if(!mapDragging)return;const dx=(e.clientX-mapDragStart.x)/(CONFIG.TILE_PX*mapCam.zoom);const dy=(e.clientY-mapDragStart.y)/(CONFIG.TILE_PX*mapCam.zoom);mapCam.x=mapCamStart.x-dx;mapCam.y=mapCamStart.y-dy}
+function mapMouseUp(){mapDragging=false}
+function mapWheel(e){e.preventDefault();const delta=e.deltaY>0?-0.15:0.15;mapCam.zoom=Math.max(0.4,Math.min(3,mapCam.zoom+delta))}
+let mapTouchStartPos=null;let mapTouchStartTime=0;
+function mapTouchStart(e){e.preventDefault();if(e.touches.length===1){mapDragging=true;const t=e.touches[0];mapDragStart={x:t.clientX,y:t.clientY};mapTouchStartPos={x:t.clientX,y:t.clientY};mapTouchStartTime=Date.now();mapCamStart={...mapCam}}}
+function mapTouchMove(e){e.preventDefault();if(!mapDragging||e.touches.length!==1)return;const dx=(e.touches[0].clientX-mapDragStart.x)/(CONFIG.TILE_PX*mapCam.zoom);const dy=(e.touches[0].clientY-mapDragStart.y)/(CONFIG.TILE_PX*mapCam.zoom);mapCam.x=mapCamStart.x-dx;mapCam.y=mapCamStart.y-dy}
+function mapTouchEnd(e){
+  mapDragging=false;
+  if(!mapTouchStartPos)return;
+  const lastTouch=e.changedTouches?e.changedTouches[0]:null;
+  const elapsed=Date.now()-mapTouchStartTime;
+  if(lastTouch&&elapsed<400){
+    const dx=Math.abs(lastTouch.clientX-mapTouchStartPos.x);
+    const dy=Math.abs(lastTouch.clientY-mapTouchStartPos.y);
+    if(dx<20&&dy<20){mapTapAt(lastTouch.clientX,lastTouch.clientY)}
+  }
+  mapTouchStartPos=null;
+}
+function mapTapAt(cx,cy){
+  if(!mapCanvas)return;
+  const rect=mapCanvas.getBoundingClientRect();
+  if(rect.width===0||rect.height===0)return;
+  const tileSize=CONFIG.TILE_PX*mapCam.zoom;
+  const ox=rect.width/2-mapCam.x*tileSize, oy=rect.height/2-mapCam.y*tileSize;
+  const tx=Math.floor((cx-rect.left-ox)/tileSize), ty=Math.floor((cy-rect.top-oy)/tileSize);
+  if(tx<0||tx>=CONFIG.MAP_SIZE||ty<0||ty>=CONFIG.MAP_SIZE)return;
+  sfx('map_tap');
+  showTileInfo(tx,ty);
+}
+function mapClick(e){
+  if(Math.abs(e.clientX-(mapDragStart.x||0))>15||Math.abs(e.clientY-(mapDragStart.y||0))>15)return;
+  mapTapAt(e.clientX,e.clientY);
+}
+function mapCenterHome(){mapCam.x=CONFIG.MAP_SIZE/2;mapCam.y=CONFIG.MAP_SIZE/2;sfx('tap')}
+function mapZoomIn(){mapCam.zoom=Math.min(3,mapCam.zoom+0.3);sfx('tap')}
+function mapZoomOut(){mapCam.zoom=Math.max(0.4,mapCam.zoom-0.3);sfx('tap')}
+
+// Tile info modal
+function showTileInfo(tx,ty){sfx('tap');
+  if(!isFogRevealed(tx,ty)){showToast('Unexplored territory!');return}
+  const S=CONFIG.MAP_SIZE, isHome=tx===S/2&&ty===S/2;
+  const t=GS.worldMap[ty][tx], td=CONFIG.TILE_TYPES[t];
+  const npc=GS.mapNPCs.find(n=>n.x===tx&&n.y===ty);
+  const occupied=GS.occupiedTiles.find(o=>o.x===tx&&o.y===ty);
+  const dist=Math.sqrt((tx-S/2)**2+(ty-S/2)**2);
+  const marchTime=Math.ceil(dist*CONFIG.MARCH_SPEED);
+
+  let h=`<div class="modal-header"><span class="modal-title">📍 (${tx}, ${ty})</span><div class="modal-close" onclick="closeModal()">✕</div></div>`;
+
+  if(isHome){
+    h+=`<div class="modal-section" style="text-align:center"><div style="font-size:32px">🏠</div><div style="font-weight:700;font-size:14px;margin-top:4px">Your Base</div><p style="color:var(--text-secondary);font-size:11px">The heart of your empire.</p></div>`;
+    h+=`<button class="btn-primary" onclick="closeModal();closeWorldMap()">🏠 Return to Base</button>`;
+  }
+  else if(npc){
+    const nd=CONFIG.NPC_BASES.find(n=>n.id===npc.npcId);
+    h+=`<div class="modal-section"><div style="text-align:center;font-size:28px">${nd.icon}</div><div style="font-weight:700;font-size:14px;text-align:center">${nd.name}</div>${sr('Power',`⚡ ${fN(nd.power)}`,'var(--accent-red)')}${sr('Distance',`${dist.toFixed(1)} tiles`)}${sr('March Time','🕐 '+fT(marchTime),'var(--accent-cyan)')}</div>`;
+    h+=`<div class="modal-section"><div class="modal-section-title">Enemy Forces</div>`;
+    Object.entries(nd.enemy).forEach(([k,v])=>{const u=CONFIG.TROOPS[k];if(u)h+=sr(`${u.icon} ${u.name}`,`×${v}`,'var(--accent-red)')});
+    h+=`</div><div class="modal-section"><div class="modal-section-title">Rewards</div><div class="cost-row">${nd.reward.gold?`<span class="cost-item" style="color:var(--gold-color)">💰${fN(nd.reward.gold)}</span>`:''}${nd.reward.food?`<span class="cost-item" style="color:var(--food-color)">🌾${fN(nd.reward.food)}</span>`:''}${nd.reward.iron?`<span class="cost-item" style="color:var(--iron-color)">⛏️${fN(nd.reward.iron)}</span>`:''}${nd.reward.xp?`<span class="cost-item" style="color:var(--xp-color)">⭐${nd.reward.xp}</span>`:''}</div></div>`;
+    const troops=Object.values(GS.troops).reduce((a,b)=>a+b,0);
+    const marchesLeft=CONFIG.MAX_MARCHES-GS.marches.length;
+    const canAttack=troops>0&&marchesLeft>0&&!npc.defeated;
+    h+=`<button class="btn-red" ${canAttack?'':'disabled'} onclick="sendMarch(${tx},${ty},'attack',${GS.mapNPCs.indexOf(npc)})">${npc.defeated?'✅ Defeated':(canAttack?'⚔️ Send Attack':'❌ '+(troops===0?'No troops':'No march slots'))}</button>`;
+  }
+  else if(td&&td.resource&&!occupied){
+    h+=`<div class="modal-section"><div style="text-align:center;font-size:28px">${td.icon}</div><div style="font-weight:700;font-size:14px;text-align:center">${td.name}</div>${sr('Resource',td.resource.toUpperCase())}${sr('Rate',`+${td.rate}/sec when occupied`,'var(--accent-green)')}${sr('Distance',`${dist.toFixed(1)} tiles`)}${sr('March Time','🕐 '+fT(marchTime),'var(--accent-cyan)')}</div>`;
+    const troops=Object.values(GS.troops).reduce((a,b)=>a+b,0);
+    const marchesLeft=CONFIG.MAX_MARCHES-GS.marches.length;
+    const canOccupy=troops>=5&&marchesLeft>0;
+    h+=`<button class="btn-primary" ${canOccupy?'':'disabled'} onclick="sendMarch(${tx},${ty},'occupy')">${canOccupy?'🚩 Send 5 Troops to Occupy':'❌ '+(troops<5?'Need 5+ troops':'No march slots')}</button>`;
+  }
+  else if(occupied){
+    h+=`<div class="modal-section"><div style="text-align:center;font-size:28px">${td.icon}</div><div style="font-weight:700;font-size:14px;text-align:center;color:var(--accent-green)">✅ ${td.name} (Occupied)</div>${sr('Producing',`+${td.rate} ${td.resource}/sec`,'var(--accent-green)')}</div>`;
+    h+=`<button class="btn-danger" onclick="abandonTile(${tx},${ty})">🏳️ Abandon Tile</button>`;
+  }
+  else{
+    h+=`<div class="modal-section"><div style="text-align:center;font-size:28px">${td?td.icon:'·'}</div><div style="font-weight:700;font-size:14px;text-align:center">${td?td.name:'Empty'}</div>${sr('Type',td?td.name:'Plains')}${sr('Distance',`${dist.toFixed(1)} tiles`)}${td&&td.passable===false?`<div style="color:var(--accent-red);font-size:10px;text-align:center;margin-top:4px">⛔ Impassable</div>`:''}</div>`;
+  }
+  openModal(h);
+}
+
+// March system
+function sendMarch(destX,destY,type,npcIdx){
+  const S=CONFIG.MAP_SIZE,dist=Math.sqrt((destX-S/2)**2+(destY-S/2)**2);
+  const time=Math.ceil(dist*CONFIG.MARCH_SPEED);
+  if(GS.marches.length>=CONFIG.MAX_MARCHES){showToast('Max marches reached!');sfx('error');return}
+
+  if(type==='attack'){
+    // All troops march
+    const marchTroops={...GS.troops};
+    if(Object.values(marchTroops).reduce((a,b)=>a+b,0)===0){showToast('No troops!');sfx('error');return}
+    GS.marches.push({id:nextMarchId++,destX,destY,troops:marchTroops,startTime:Date.now(),endTime:Date.now()+time*1000,type:'attack',targetNpcIdx:npcIdx});
+    // Remove troops from base
+    Object.keys(GS.troops).forEach(k=>GS.troops[k]=0);
+    sfx('march');
+    showToast(`March to (${destX},${destY})! ETA: ${fT(time)}`,'toast-gold');
+  }
+  else if(type==='occupy'){
+    // Send 5 infantry (or mix)
+    let sent=0;
+    const marchTroops={infantry:0,vehicle:0,artillery:0,air:0};
+    for(const k of ['infantry','vehicle','artillery','air']){
+      const take=Math.min(GS.troops[k],5-sent);
+      if(take>0){marchTroops[k]=take;GS.troops[k]-=take;sent+=take}
+      if(sent>=5)break;
+    }
+    GS.marches.push({id:nextMarchId++,destX,destY,troops:marchTroops,startTime:Date.now(),endTime:Date.now()+time*1000,type:'occupy'});
+    sfx('march');
+    showToast(`Occupy march to (${destX},${destY})! ETA: ${fT(time)}`,'toast-gold');
+  }
+  revealFog(destX,destY,CONFIG.SCOUT_RADIUS);
+  closeModal();
+}
+
+function processMarchArrivals(){
+  const now=Date.now();
+  const arrived=GS.marches.filter(m=>now>=m.endTime);
+  GS.marches=GS.marches.filter(m=>now<m.endTime);
+
+  arrived.forEach(m=>{
+    if(m.type==='attack'){
+      const npc=GS.mapNPCs[m.targetNpcIdx];
+      if(!npc)return;
+      const nd=CONFIG.NPC_BASES.find(n=>n.id===npc.npcId);
+      if(!nd)return;
+      const result=simulateBattle(m.troops,nd.enemy);
+      // Apply losses
+      Object.entries(result.losses).forEach(([k,v])=>{m.troops[k]=Math.max(0,m.troops[k]-v)});
+      // Return troops (survivors march back)
+      Object.entries(m.troops).forEach(([k,v])=>{GS.troops[k]+=v});
+      // Wounded to hospital
+      const hospCap=getHospitalCap(),curW=getTotalWounded();
+      let wAdd=0;
+      Object.entries(result.wounded).forEach(([k,v])=>{const ca=Math.min(v,hospCap-curW-wAdd);if(ca>0){GS.wounded[k]+=ca;wAdd+=ca}});
+
+      if(result.win){
+        npc.defeated=true;GS.stats.npcsDefeated=(GS.stats.npcsDefeated||0)+1;GS.stats.battlesWon++;
+        GS.resources.gold=Math.min(GS.resources.gold+(nd.reward.gold||0),GS.storage.gold);
+        GS.resources.food=Math.min(GS.resources.food+(nd.reward.food||0),GS.storage.food);
+        GS.resources.iron=Math.min(GS.resources.iron+(nd.reward.iron||0),GS.storage.iron);
+        if(nd.reward.xp)addXP(nd.reward.xp);
+        revealFog(npc.x,npc.y,CONFIG.SCOUT_RADIUS+2);
+        sfx('victory');
+        showToast(`Victory at ${nd.name}! Loot collected!`,'toast-gold');
+        GS.battleReports.unshift({missionName:nd.name,win:true,losses:result.losses,wounded:result.wounded,reward:nd.reward,log:result.log,time:now});
+      } else {
+        GS.stats.battlesLost++;
+        sfx('defeat');
+        showToast(`Defeat at ${nd.name}...`,'toast-red');
+        GS.battleReports.unshift({missionName:nd.name,win:false,losses:result.losses,wounded:result.wounded,reward:null,log:result.log,time:now});
+      }
+      if(GS.battleReports.length>10)GS.battleReports.pop();
+    }
+    else if(m.type==='occupy'){
+      const td=CONFIG.TILE_TYPES[GS.worldMap[m.destY][m.destX]];
+      if(td&&td.resource){
+        if(!GS.occupiedTiles.some(o=>o.x===m.destX&&o.y===m.destY)){
+          GS.occupiedTiles.push({x:m.destX,y:m.destY,type:GS.worldMap[m.destY][m.destX]});
+          GS.stats.tilesOccupied=(GS.stats.tilesOccupied||0)+1;
+          revealFog(m.destX,m.destY,CONFIG.SCOUT_RADIUS);
+          sfx('coin');
+          showToast(`Tile (${m.destX},${m.destY}) occupied!`,'toast-gold');
+        }
+      }
+      // Troops stay at tile (don't return)
+    }
+  });
+}
+
+function abandonTile(x,y){
+  GS.occupiedTiles=GS.occupiedTiles.filter(o=>!(o.x===x&&o.y===y));
+  GS.troops.infantry+=5;
+  sfx('close');
+  showToast('Tile abandoned. Troops returned.');
+  closeModal();
+}
+
+function getOccupiedRates(){
+  let gold=0,food=0,iron=0;
+  GS.occupiedTiles.forEach(ot=>{
+    const td=CONFIG.TILE_TYPES[ot.type];
+    if(!td||!td.resource)return;
+    if(td.resource==='gold')gold+=td.rate;
+    if(td.resource==='food')food+=td.rate;
+    if(td.resource==='iron')iron+=td.rate;
+  });
+  return{gold,food,iron};
+}
+
+// Marches panel
+function showMarchesPanel(){sfx('tap');
+  let h=`<div class="modal-header"><span class="modal-title">🚶 Active Marches</span><div class="modal-close" onclick="closeModal()">✕</div></div>`;
+  h+=`<div class="modal-section">${sr('Active',`${GS.marches.length} / ${CONFIG.MAX_MARCHES}`)}${sr('Tiles Occupied',GS.occupiedTiles.length,'var(--accent-green)')}</div>`;
+  if(GS.marches.length===0)h+=`<div class="modal-section" style="text-align:center;color:var(--text-secondary);padding:12px">No active marches.</div>`;
+  GS.marches.forEach(m=>{
+    const rem=Math.max(0,Math.ceil((m.endTime-Date.now())/1000));
+    const total2=(m.endTime-m.startTime)/1000,prog=((total2-rem)/total2)*100;
+    const icon=m.type==='attack'?'⚔️':'🚩';
+    h+=`<div class="march-item"><span class="march-icon">${icon}</span><div class="march-info"><div style="font-weight:700">${m.type==='attack'?'Attack':'Occupy'} → (${m.destX},${m.destY})</div><div class="queue-progress" style="margin-top:3px"><div class="queue-progress-fill" style="width:${Math.min(100,prog)}%;background:linear-gradient(90deg,var(--accent-cyan),var(--accent-blue))"></div></div></div><span class="march-time">${fT(rem)}</span></div>`;
+  });
+  if(GS.occupiedTiles.length>0){
+    h+=`<div class="modal-section-title" style="padding:2px;margin-top:6px">Occupied Tiles</div>`;
+    GS.occupiedTiles.forEach(ot=>{const td=CONFIG.TILE_TYPES[ot.type];h+=`<div class="modal-section" style="padding:6px">${sr(`${td.icon} (${ot.x},${ot.y})`,`+${td.rate} ${td.resource}/s`,'var(--accent-green)')}</div>`});
+  }
+  openModal(h);
+}
+
+function showMapLegend(){sfx('tap');
+  let h=`<div class="modal-header"><span class="modal-title">❓ Map Legend</span><div class="modal-close" onclick="closeModal()">✕</div></div>`;
+  h+=`<div class="modal-section">`;
+  h+=sr('🏠','Your Base');
+  Object.entries(CONFIG.TILE_TYPES).forEach(([k,t])=>{h+=sr(t.icon,t.name+(t.resource?` (+${t.rate} ${t.resource}/s)`:'')+(t.passable===false?' ⛔':''))});
+  CONFIG.NPC_BASES.forEach(n=>{h+=sr(n.icon,`${n.name} (⚡${fN(n.power)})`)});
+  h+=sr('🟦','Fog of War (unexplored)');
+  h+=sr('🟩','Occupied tile (green border)');
+  h+=`</div><div class="modal-section">${sr('Pan','Drag to move')}${sr('Zoom','Scroll / +- buttons')}${sr('Select','Tap any tile')}${sr('Max Marches',CONFIG.MAX_MARCHES)}</div>`;
+  openModal(h);
+}
+
+// ═══════════════════════════════════════
+// ACHIEVEMENTS
+// ═══════════════════════════════════════
+const ACHIEVEMENTS=[
+  {id:'ach_first_build', name:'Foundation',     icon:'🏗️', desc:'Build your first structure.',          check:()=>GS.stats.buildingsBuilt>=1},
+  {id:'ach_hq3',         name:'Commander',      icon:'🏛️', desc:'Upgrade HQ to Level 3.',              check:()=>GS.hqLevel>=3},
+  {id:'ach_hq5',         name:'General',        icon:'⭐',  desc:'Upgrade HQ to Level 5.',              check:()=>GS.hqLevel>=5},
+  {id:'ach_hq10',        name:'Supreme Leader', icon:'👑',  desc:'Max out HQ to Level 10.',             check:()=>GS.hqLevel>=10},
+  {id:'ach_research5',   name:'Scholar',        icon:'🔬',  desc:'Complete 5 research projects.',       check:()=>GS.stats.researchDone>=5},
+  {id:'ach_research_all',name:'Enlightened',    icon:'🧠',  desc:'Research 10 technologies.',           check:()=>Object.keys(GS.research).length>=10},
+  {id:'ach_train50',     name:'Recruiter',      icon:'🪖',  desc:'Train 50 troops total.',              check:()=>GS.stats.troopsTrained>=50},
+  {id:'ach_train200',    name:'Army Builder',   icon:'⚔️',  desc:'Train 200 troops total.',             check:()=>GS.stats.troopsTrained>=200},
+  {id:'ach_battle1',     name:'First Blood',    icon:'🩸',  desc:'Win your first battle.',              check:()=>GS.stats.battlesWon>=1},
+  {id:'ach_battle10',    name:'Warmonger',      icon:'💀',  desc:'Win 10 battles.',                     check:()=>GS.stats.battlesWon>=10},
+  {id:'ach_campaign5',   name:'Conqueror',      icon:'🗺️',  desc:'Clear 5 campaign missions.',          check:()=>GS.campaignCleared.length>=5},
+  {id:'ach_campaign15',  name:'Legend',          icon:'🏆',  desc:'Clear all 15 campaign missions.',     check:()=>GS.campaignCleared.length>=15},
+  {id:'ach_power1k',     name:'Rising Force',   icon:'⚡',  desc:'Reach 1,000 Power.',                  check:()=>GS.totalPower>=1000},
+  {id:'ach_power5k',     name:'Superpower',     icon:'💪',  desc:'Reach 5,000 Power.',                  check:()=>GS.totalPower>=5000},
+  {id:'ach_power20k',    name:'Iron Empire',    icon:'🌟',  desc:'Reach 20,000 Power.',                 check:()=>GS.totalPower>=20000},
+  {id:'ach_cmdlv10',     name:'Elite Commander',icon:'🎖️', desc:'Reach Commander Level 10.',           check:()=>GS.commander.level>=10},
+  {id:'ach_tiles3',      name:'Expansionist',   icon:'🚩',  desc:'Occupy 3 resource tiles.',            check:()=>GS.occupiedTiles.length>=3},
+  {id:'ach_npc5',        name:'NPC Hunter',     icon:'🏚️', desc:'Defeat all 5 NPC bases on the map.',  check:()=>(GS.stats.npcsDefeated||0)>=5},
+];
+
+function checkAchievements(){
+  ACHIEVEMENTS.forEach(a=>{
+    if(GS.achievements[a.id])return;
+    if(a.check()){
+      GS.achievements[a.id]=Date.now();
+      addGems(CONFIG.GEM_SOURCES.achievement);
+      showToast(`🏆 Achievement: ${a.name}! +${CONFIG.GEM_SOURCES.achievement}💎`,'toast-gold');
+      sfx('achievement');spawnParticles(window.innerWidth/2,80,'gold',10);
+    }
+  });
+}
+
+function showAchievements(){sfx('tap');
+  const unlocked=ACHIEVEMENTS.filter(a=>GS.achievements[a.id]);
+  const locked=ACHIEVEMENTS.filter(a=>!GS.achievements[a.id]);
+  let h=`<div class="modal-header"><span class="modal-title">🏆 Achievements</span><div class="modal-close" onclick="closeModal()">✕</div></div>`;
+  h+=`<div class="modal-section">${sr('Unlocked',`${unlocked.length} / ${ACHIEVEMENTS.length}`,'var(--gold-color)')}</div>`;
+  unlocked.forEach(a=>{h+=`<div class="achievement-card unlocked"><span class="ach-icon">${a.icon}</span><div class="ach-info"><div class="ach-name">${a.name}</div><div class="ach-desc">${a.desc}</div></div></div>`});
+  locked.forEach(a=>{h+=`<div class="achievement-card locked"><span class="ach-icon">🔒</span><div class="ach-info"><div class="ach-name">???</div><div class="ach-desc">${a.desc}</div></div></div>`});
+  openModal(h);
+}
+
+// ═══════════════════════════════════════
+// SOUND EFFECTS (Web Audio API)
+// ═══════════════════════════════════════
+let audioCtx=null;
+function getAudioCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx}
+
+// Throttle to avoid sound spam
+let _lastSfx=0;
+function sfx(type){
+  if(!GS.soundOn)return;
+  const now=Date.now();
+  // Allow overlapping for important sounds, throttle subtle ones
+  const minGap={'tap':40,'tab':40,'navigate':60}[type]||0;
+  if(now-_lastSfx<minGap)return;
+  _lastSfx=now;
+  try{
+    const ctx=getAudioCtx();
+    const t=ctx.currentTime;
+    // Helper: create connected osc+gain
+    const mk=(freq,wave,vol,start,end)=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.frequency.value=freq;o.type=wave;g.gain.value=vol;
+      o.start(t+start);o.stop(t+end);return{o,g};
+    };
+    // Helper: fade out
+    const fade=(g,from,to,startT,endT)=>{g.gain.setValueAtTime(from,t+startT);g.gain.linearRampToValueAtTime(to,t+endT)};
+
+    switch(type){
+      // ─── SUBTLE UI (very quiet, short) ───
+      case'tap':{
+        mk(900,'sine',0.025,0,0.035);
+      }break;
+      case'tab':{
+        mk(700,'sine',0.03,0,0.03);
+        mk(1050,'sine',0.02,0.02,0.06);
+      }break;
+      case'open':{
+        // Soft ascending whoosh
+        const{o,g}=mk(300,'sine',0.04,0,0.12);
+        o.frequency.linearRampToValueAtTime(600,t+0.12);
+        fade(g,0.04,0,0.06,0.12);
+      }break;
+      case'close':{
+        // Soft descending
+        const{o,g}=mk(500,'sine',0.03,0,0.1);
+        o.frequency.linearRampToValueAtTime(250,t+0.1);
+        fade(g,0.03,0,0.05,0.1);
+      }break;
+      case'navigate':{
+        // Fan menu pop - bubbly
+        mk(600,'sine',0.03,0,0.04);
+        mk(800,'sine',0.025,0.03,0.08);
+        mk(1000,'sine',0.02,0.06,0.1);
+      }break;
+      case'toggle':{
+        mk(880,'square',0.02,0,0.03);
+        mk(1100,'square',0.015,0.03,0.06);
+      }break;
+      case'error':{
+        // Low buzz - two quick notes
+        mk(200,'square',0.04,0,0.08);
+        mk(180,'square',0.035,0.1,0.18);
+      }break;
+
+      // ─── MEDIUM FEEDBACK ───
+      case'click':{
+        mk(800,'sine',0.04,0,0.04);
+        mk(1200,'sine',0.02,0.02,0.06);
+      }break;
+      case'coin':{
+        // Bright sparkly coin sound
+        mk(1200,'sine',0.035,0,0.06);
+        mk(1500,'sine',0.025,0.04,0.1);
+        mk(1800,'sine',0.015,0.07,0.12);
+      }break;
+      case'spend':{
+        // Softer descending coin
+        mk(1000,'sine',0.03,0,0.06);
+        mk(700,'sine',0.02,0.04,0.1);
+      }break;
+      case'queue':{
+        // Queued/enqueued - soft confirmation
+        mk(500,'triangle',0.035,0,0.06);
+        mk(700,'triangle',0.03,0.05,0.12);
+      }break;
+      case'build':{
+        // Construction complete - satisfying two-tone
+        mk(400,'triangle',0.05,0,0.08);
+        const{o}=mk(400,'triangle',0.05,0,0.15);
+        o.frequency.linearRampToValueAtTime(650,t+0.15);
+        mk(800,'sine',0.03,0.12,0.22);
+      }break;
+      case'research':{
+        // Techy ascending shimmer
+        mk(600,'sine',0.04,0,0.08);
+        mk(800,'sine',0.035,0.06,0.14);
+        mk(1100,'sine',0.03,0.12,0.22);
+        mk(1400,'sine',0.02,0.18,0.28);
+      }break;
+      case'train':{
+        // Military drum-like tap + confirm
+        mk(150,'triangle',0.05,0,0.05);
+        mk(300,'triangle',0.04,0.04,0.08);
+        mk(600,'sine',0.03,0.08,0.14);
+      }break;
+      case'heal':{
+        // Gentle healing chime
+        mk(700,'sine',0.03,0,0.1);
+        mk(900,'sine',0.025,0.08,0.18);
+        mk(1100,'sine',0.02,0.15,0.25);
+      }break;
+      case'march':{
+        // Marching drums
+        mk(120,'triangle',0.05,0,0.06);
+        mk(120,'triangle',0.04,0.08,0.14);
+        mk(120,'triangle',0.035,0.16,0.22);
+        mk(400,'sine',0.025,0.2,0.3);
+      }break;
+      case'map_tap':{
+        mk(500,'sine',0.025,0,0.04);
+        mk(750,'sine',0.02,0.03,0.07);
+      }break;
+      case'equip':{
+        // Armor clink
+        mk(2000,'sine',0.03,0,0.03);
+        mk(3000,'sine',0.02,0.02,0.06);
+        mk(1500,'sine',0.025,0.05,0.1);
+      }break;
+      case'levelup':{
+        // Ascending fanfare
+        mk(523,'sine',0.05,0,0.1);
+        mk(659,'sine',0.05,0.08,0.18);
+        mk(784,'sine',0.05,0.16,0.26);
+        mk(1047,'sine',0.06,0.24,0.4);
+      }break;
+      case'gem':{
+        // Sparkly gem sound
+        mk(1500,'sine',0.03,0,0.05);
+        mk(2000,'sine',0.025,0.03,0.08);
+        mk(2500,'sine',0.02,0.06,0.12);
+        mk(1800,'sine',0.015,0.1,0.16);
+      }break;
+      case'claim':{
+        // Reward chest open
+        mk(400,'triangle',0.04,0,0.06);
+        mk(600,'sine',0.04,0.05,0.12);
+        mk(900,'sine',0.05,0.1,0.2);
+        mk(1200,'sine',0.04,0.17,0.3);
+      }break;
+
+      // ─── ALERT / IMPORTANT (louder, more complex) ───
+      case'battle':{
+        // War horns + impact
+        const{o:o1,g:g1}=mk(150,'sawtooth',0.06,0,0.35);
+        o1.frequency.linearRampToValueAtTime(100,t+0.35);
+        fade(g1,0.06,0,0.2,0.35);
+        mk(80,'square',0.04,0,0.1);
+        mk(200,'triangle',0.03,0.15,0.3);
+      }break;
+      case'victory':{
+        // Triumphant 4-note fanfare
+        mk(523,'sine',0.06,0,0.12);
+        mk(659,'sine',0.06,0.1,0.22);
+        mk(784,'sine',0.06,0.2,0.32);
+        mk(1047,'sine',0.07,0.3,0.5);
+        // Harmony
+        mk(392,'sine',0.03,0.3,0.5);
+        mk(659,'sine',0.03,0.3,0.5);
+      }break;
+      case'defeat':{
+        // Descending doom
+        const{o:o1,g:g1}=mk(300,'sawtooth',0.05,0,0.5);
+        o1.frequency.linearRampToValueAtTime(100,t+0.5);
+        fade(g1,0.05,0,0.3,0.5);
+        mk(250,'triangle',0.03,0.15,0.4);
+        mk(80,'square',0.04,0.3,0.5);
+      }break;
+      case'achievement':{
+        // Magical sparkle fanfare
+        mk(784,'sine',0.05,0,0.08);
+        mk(988,'sine',0.05,0.07,0.15);
+        mk(1175,'sine',0.05,0.14,0.22);
+        mk(1568,'sine',0.06,0.2,0.35);
+        // Shimmer
+        mk(2349,'sine',0.02,0.25,0.4);
+        mk(2637,'sine',0.015,0.3,0.45);
+      }break;
+      case'alert':{
+        // Urgent ping-ping
+        mk(1000,'square',0.05,0,0.08);
+        mk(1000,'square',0.04,0.15,0.23);
+        mk(1400,'square',0.05,0.3,0.38);
+      }break;
+      case'boss':{
+        // Heavy impact + rumble
+        mk(60,'sawtooth',0.07,0,0.15);
+        mk(40,'square',0.05,0.05,0.25);
+        mk(300,'triangle',0.04,0.1,0.2);
+        const{o:o1,g:g1}=mk(80,'sawtooth',0.04,0.15,0.4);
+        o1.frequency.linearRampToValueAtTime(40,t+0.4);
+        fade(g1,0.04,0,0.25,0.4);
+      }break;
+      case'event':{
+        // Trumpet-like announcement
+        mk(440,'square',0.03,0,0.08);
+        mk(554,'square',0.03,0.06,0.14);
+        mk(659,'square',0.04,0.12,0.22);
+        mk(880,'sine',0.05,0.2,0.35);
+      }break;
+      case'welcome':{
+        // Warm startup jingle
+        mk(440,'sine',0.04,0,0.12);
+        mk(554,'sine',0.04,0.1,0.22);
+        mk(659,'sine',0.04,0.2,0.32);
+        mk(880,'sine',0.05,0.3,0.5);
+        mk(554,'sine',0.02,0.3,0.5);
+      }break;
+
+      default:mk(600,'sine',0.03,0,0.05);
+    }
+  }catch(e){}
+}
+
+// ═══════════════════════════════════════
+// GEMS & SPEED-UPS
+// ═══════════════════════════════════════
+function addGems(n,src){GS.gems+=n;GS.stats.gemsEarned=(GS.stats.gemsEarned||0)+n;if(n>0){showToast(`+${n} 💎 Gems!`,'toast-purple');sfx('gem')}}
+function spendGems(n){if(GS.gems<n){sfx('error');return false}GS.gems-=n;GS.stats.gemsSpent=(GS.stats.gemsSpent||0)+n;sfx('spend');return true}
+
+function showGemShop(){sfx('tap');
+  let h=`<div class="modal-header"><span class="modal-title">💎 Gem Shop</span><div class="modal-close" onclick="closeModal()">✕</div></div>`;
+  h+=`<div class="modal-section">${sr('💎 Gems',GS.gems,'var(--gem-color)')}${sr('Earned',GS.stats.gemsEarned||0)}${sr('Spent',GS.stats.gemsSpent||0)}</div>`;
+  h+=`<div class="modal-section"><div class="modal-section-title">Speed Up Timers</div>`;
+  // Active construction
+  if(GS.constructions.length>0){const c=GS.constructions[0],b=GS.buildings.find(x=>x.id===c.buildingId),d=b?CONFIG.BUILDINGS[b.type]:null;const rem=tRem(c),cost=CONFIG.GEM_SPEED_COST(rem);
+    h+=`<div class="settings-row"><span>${d?d.icon:'🏗️'} ${d?d.name:'Build'} (${fT(rem)})</span><button class="speed-btn" ${GS.gems>=cost?'':'disabled'} onclick="speedUpBuild(0)">💎${cost} Finish</button></div>`}
+  // Research
+  if(GS.activeResearch){const rem=Math.max(0,Math.ceil((GS.activeResearch.endTime-Date.now())/1000)),cost=CONFIG.GEM_SPEED_COST(rem);const t=findTech(GS.activeResearch.techId);
+    h+=`<div class="settings-row"><span>${t?t.icon:'🔬'} ${t?t.name:'Research'} (${fT(rem)})</span><button class="speed-btn" ${GS.gems>=cost?'':'disabled'} onclick="speedUpResearch()">💎${cost} Finish</button></div>`}
+  // Training
+  if(GS.trainingQueue.length>0){const totalRem=GS.trainingQueue.reduce((a,t)=>a+Math.max(0,(t.endTime-Date.now())/1000),0),cost=CONFIG.GEM_SPEED_COST(Math.ceil(totalRem));
+    h+=`<div class="settings-row"><span>🪖 Training ×${GS.trainingQueue.length} (${fT(Math.ceil(totalRem))})</span><button class="speed-btn" ${GS.gems>=cost?'':'disabled'} onclick="speedUpTraining()">💎${cost} Finish</button></div>`}
+  // Marches
+  GS.marches.forEach((m,i)=>{const rem=Math.max(0,Math.ceil((m.endTime-Date.now())/1000)),cost=CONFIG.GEM_SPEED_COST(rem);
+    h+=`<div class="settings-row"><span>${m.type==='attack'?'⚔️':'🚩'} March (${fT(rem)})</span><button class="speed-btn" ${GS.gems>=cost?'':'disabled'} onclick="speedUpMarch(${i})">💎${cost} Finish</button></div>`});
+  if(GS.constructions.length===0&&!GS.activeResearch&&GS.trainingQueue.length===0&&GS.marches.length===0)h+=`<div style="text-align:center;color:var(--text-secondary);font-size:11px;padding:8px">No active timers to speed up.</div>`;
+  h+=`</div>`;
+  h+=`<div class="modal-section"><div class="modal-section-title">Earn Gems</div>`;
+  h+=`<div style="font-size:11px;color:var(--text-secondary);line-height:1.6">🏆 Achievements: +${CONFIG.GEM_SOURCES.achievement} each<br>📅 Daily Login: +${CONFIG.GEM_SOURCES.dailyLogin}/day<br>⏱️ Events: +8-15 per event<br>👹 Raid Boss: +${CONFIG.GEM_SOURCES.raidBoss}</div></div>`;
+  openModal(h);
+}
+
+function speedUpBuild(idx){if(!GS.constructions[idx])return;const rem=tRem(GS.constructions[idx]),cost=CONFIG.GEM_SPEED_COST(rem);if(!spendGems(cost))return;GS.constructions[idx].endTime=Date.now()-1;sfx('build');closeModal();showToast('⚡ Instant build!')}
+function speedUpResearch(){if(!GS.activeResearch)return;const rem=Math.max(0,Math.ceil((GS.activeResearch.endTime-Date.now())/1000)),cost=CONFIG.GEM_SPEED_COST(rem);if(!spendGems(cost))return;GS.activeResearch.endTime=Date.now()-1;sfx('research');closeModal();showToast('⚡ Instant research!')}
+function speedUpTraining(){if(GS.trainingQueue.length===0)return;const totalRem=GS.trainingQueue.reduce((a,t)=>a+Math.max(0,(t.endTime-Date.now())/1000),0),cost=CONFIG.GEM_SPEED_COST(Math.ceil(totalRem));if(!spendGems(cost))return;GS.trainingQueue.forEach(t=>t.endTime=Date.now()-1);sfx('build');closeModal();showToast('⚡ All troops trained!')}
+function speedUpMarch(idx){if(!GS.marches[idx])return;const rem=Math.max(0,Math.ceil((GS.marches[idx].endTime-Date.now())/1000)),cost=CONFIG.GEM_SPEED_COST(rem);if(!spendGems(cost))return;GS.marches[idx].endTime=Date.now()-1;sfx('click');closeModal();showToast('⚡ March arrived!')}
+
+// ═══════════════════════════════════════
+// HERO SYSTEM
+// ═══════════════════════════════════════
+function showHeroes(){sfx('tap');
+  let h=`<div class="modal-header"><span class="modal-title">🦸 Heroes</span><div class="modal-close" onclick="closeModal()">✕</div></div>`;
+  h+=`<div class="modal-section">${sr('Equipped',GS.equippedHero?CONFIG.HEROES.find(x=>x.id===GS.equippedHero)?.name||'None':'None','var(--accent-green)')}${sr('Owned',`${Object.keys(GS.heroes).length}/${CONFIG.HEROES.length}`)}</div>`;
+  CONFIG.HEROES.forEach(hero=>{
+    const owned=GS.heroes[hero.id];
+    const equipped=GS.equippedHero===hero.id;
+    const canBuy=!owned&&GS.hqLevel>=hero.unlockHQ&&GS.gems>=hero.cost;
+    const locked=!owned&&GS.hqLevel<hero.unlockHQ;
+    h+=`<div class="hero-card ${equipped?'equipped':''} ${locked?'locked':''}" ${owned?`onclick="equipHero('${hero.id}')"`:canBuy?`onclick="recruitHero('${hero.id}')"`:''}>`
+    h+=`<span class="hero-icon">${locked?'🔒':hero.icon}</span><div class="hero-info"><div class="hero-name">${locked?'???':hero.name}${equipped?' ✅':''}</div>`;
+    h+=`<div class="hero-rarity rarity-${hero.rarity}">${hero.rarity}</div>`;
+    h+=`<div class="hero-bonus">${hero.desc}</div></div>`;
+    if(!owned&&!locked)h+=`<button class="speed-btn" ${canBuy?'':'disabled'}>💎${hero.cost}</button>`;
+    if(locked)h+=`<span style="font-size:9px;color:var(--text-dim)">HQ ${hero.unlockHQ}</span>`;
+    h+=`</div>`;
+  });
+  openModal(h);
+}
+
+function recruitHero(id){
+  const hero=CONFIG.HEROES.find(h=>h.id===id);if(!hero)return;
+  if(!spendGems(hero.cost)){showToast('Not enough gems!','toast-red');return}
+  GS.heroes[id]=true;
+  if(!GS.equippedHero)GS.equippedHero=id;
+  showToast(`🦸 ${hero.name} recruited!`,'toast-gold');sfx('achievement');
+  spawnParticles(window.innerWidth/2,window.innerHeight/2,'purple',12);
+  showHeroes();
+}
+
+function equipHero(id){
+  if(GS.equippedHero===id){GS.equippedHero=null;showToast('Hero unequipped.');} 
+  else{GS.equippedHero=id;const h=CONFIG.HEROES.find(x=>x.id===id);showToast(`${h.name} equipped!`);sfx('equip')}
+  showHeroes();
+}
+
+function getHeroBonus(type){
+  if(!GS.equippedHero)return 0;
+  const hero=CONFIG.HEROES.find(h=>h.id===GS.equippedHero);
+  if(!hero)return 0;
+  if(hero.bonus===type)return hero.value/100;
+  if(hero.bonus==='allStats'&&(type==='atk'||type==='def'||type==='hp'))return hero.value/100;
+  return 0;
+}
+
+// ═══════════════════════════════════════
+// EVENTS / RAID BOSS
+// ═══════════════════════════════════════
+function showEvents(){sfx('tap');
+  const now=Date.now();
+  let h=`<div class="modal-header"><span class="modal-title">⏱️ Events</span><div class="modal-close" onclick="closeModal()">✕</div></div>`;
+  
+  if(GS.activeEvent&&now<GS.activeEvent.endTime){
+    const evt=CONFIG.EVENTS.find(e=>e.id===GS.activeEvent.eventId);
+    const rem=Math.ceil((GS.activeEvent.endTime-now)/1000);
+    h+=`<div class="event-banner"><div class="event-title">${evt.icon} ${evt.name}</div><div style="font-size:11px;color:var(--text-secondary);margin-top:2px">${evt.desc}</div><div class="event-timer">⏰ ${fT(rem)} remaining</div>`;
+    if(evt.bonus==='raidBoss'){
+      const prog=Math.min(100,(GS.raidDamage/evt.bossHP)*100);
+      h+=`<div class="event-progress"><div class="event-progress-fill" style="width:${prog}%"></div></div>`;
+      h+=`<div style="font-size:10px;color:var(--text-secondary);margin-top:3px">👹 ${fN(GS.raidDamage)} / ${fN(evt.bossHP)} HP</div>`;
+      h+=`</div>`;
+      const armySize=Object.values(GS.troops).reduce((a,b)=>a+b,0);
+      h+=`<button class="btn-red" ${armySize>0?'':'disabled'} onclick="attackRaidBoss()">⚔️ Attack Boss (Uses all troops)</button>`;
+    } else {
+      h+=`</div>`;
+    }
+    if(GS.raidDamage>=((CONFIG.EVENTS.find(e=>e.id===GS.activeEvent.eventId))?.bossHP||Infinity)||
+       (evt.bonus!=='raidBoss'&&!GS.activeEvent.claimed)){
+      const canClaim=evt.bonus==='raidBoss'?GS.raidDamage>=evt.bossHP:true;
+      if(canClaim&&!GS.activeEvent.claimed)h+=`<button class="btn-primary" onclick="claimEventReward()">🎁 Claim Rewards!</button>`;
+      if(GS.activeEvent.claimed)h+=`<div style="text-align:center;color:var(--accent-green);font-size:12px;margin-top:6px">✅ Rewards claimed!</div>`;
+    }
+  } else {
+    if(GS.activeEvent&&now>=GS.activeEvent.endTime){GS.activeEvent=null;GS.raidDamage=0}
+    h+=`<div class="modal-section" style="text-align:center;padding:12px"><div style="font-size:28px;margin-bottom:8px">⏱️</div><div style="font-size:12px;color:var(--text-secondary)">No active event.</div></div>`;
+    h+=`<div class="modal-section-title">Start an Event</div>`;
+    CONFIG.EVENTS.forEach(evt=>{
+      h+=`<div class="event-banner" onclick="startEvent('${evt.id}')" style="cursor:pointer"><div class="event-title">${evt.icon} ${evt.name}</div><div style="font-size:11px;color:var(--text-secondary);margin-top:2px">${evt.desc}</div><div style="font-size:10px;color:var(--text-dim);margin-top:4px">Duration: ${fT(evt.duration)} | Rewards: 💎${evt.rewards.gems}+</div></div>`;
+    });
+  }
+  openModal(h);
+}
+
+function startEvent(id){
+  const evt=CONFIG.EVENTS.find(e=>e.id===id);if(!evt)return;
+  GS.activeEvent={eventId:id,startTime:Date.now(),endTime:Date.now()+evt.duration*1000,progress:0,claimed:false};
+  GS.raidDamage=0;
+  showToast(`${evt.icon} ${evt.name} started!`,'toast-gold');sfx('event');
+  showEvents();
+}
+
+function attackRaidBoss(){
+  const evt=CONFIG.EVENTS.find(e=>e.id===GS.activeEvent?.eventId);
+  if(!evt||evt.bonus!=='raidBoss')return;
+  const str=calcArmyStrength(GS.troops);
+  const dmg=Math.floor(str*0.5+Math.random()*str*0.3);
+  GS.raidDamage+=dmg;
+  // Lose some troops (10-20%)
+  const lossRate=0.1+Math.random()*0.1;
+  Object.keys(GS.troops).forEach(k=>{const loss=Math.floor(GS.troops[k]*lossRate);GS.troops[k]-=loss});
+  showToast(`💥 Dealt ${fN(dmg)} damage to boss!`,'toast-red');sfx('boss');
+  spawnParticles(window.innerWidth/2,window.innerHeight/3,'red',15);
+  if(GS.raidDamage>=evt.bossHP){showToast('👹 Boss defeated!','toast-gold');sfx('victory')}
+  showEvents();
+}
+
+function claimEventReward(){
+  if(!GS.activeEvent||GS.activeEvent.claimed)return;
+  const evt=CONFIG.EVENTS.find(e=>e.id===GS.activeEvent.eventId);if(!evt)return;
+  GS.resources.gold=Math.min(GS.resources.gold+(evt.rewards.gold||0),GS.storage.gold);
+  GS.resources.food=Math.min(GS.resources.food+(evt.rewards.food||0),GS.storage.food);
+  GS.resources.iron=Math.min(GS.resources.iron+(evt.rewards.iron||0),GS.storage.iron);
+  if(evt.rewards.gems)addGems(evt.rewards.gems);
+  GS.activeEvent.claimed=true;
+  showToast('🎁 Event rewards claimed!','toast-gold');sfx('claim');
+  spawnParticles(window.innerWidth/2,window.innerHeight/2,'gold',20);
+  showEvents();
+}
+
+function getEventBonus(type){
+  if(!GS.activeEvent||Date.now()>=GS.activeEvent.endTime)return 1;
+  const evt=CONFIG.EVENTS.find(e=>e.id===GS.activeEvent.eventId);
+  if(evt&&evt.bonus===type)return evt.value;
+  return 1;
+}
+
+// ═══════════════════════════════════════
+// ALLIANCE (Placeholder)
+// ═══════════════════════════════════════
+function showAlliance(){sfx('tap');
+  let h=`<div class="modal-header"><span class="modal-title">🏰 Alliance</span><div class="modal-close" onclick="closeModal()">✕</div></div>`;
+  if(GS.alliance.name){
+    h+=`<div class="alliance-banner"><div class="a-icon">${GS.alliance.icon}</div><div class="a-name">[${GS.alliance.tag}] ${GS.alliance.name}</div><div style="font-size:10px;color:var(--text-secondary);margin-top:4px">Founded ${timeSince(GS.alliance.created)}</div></div>`;
+    h+=`<div class="modal-section" style="margin-top:8px">${sr('Members','1 / 50 (Solo)','var(--text-secondary)')}${sr('Status','⚠️ Multiplayer coming soon','var(--accent-orange)')}</div>`;
+    h+=`<div class="modal-section"><div class="modal-section-title">Alliance Perks (Future)</div>`;
+    h+=`<div style="font-size:11px;color:var(--text-dim);line-height:1.6">🤝 Alliance chat & diplomacy<br>⚔️ Rally attacks (coordinated strikes)<br>🏰 Alliance territory on world map<br>🎁 Alliance gifts & help<br>🏆 Alliance vs Alliance wars</div></div>`;
+    h+=`<button class="btn-danger" onclick="if(confirm('Disband alliance?')){GS.alliance={name:null,tag:null,icon:'🏰',created:null};showAlliance()}">Disband</button>`;
+  } else {
+    h+=`<div class="modal-section" style="text-align:center;padding:16px"><div style="font-size:36px;margin-bottom:8px">🏰</div><div style="font-size:14px;font-weight:700;margin-bottom:4px">Create Your Alliance</div><div style="font-size:11px;color:var(--text-secondary)">Prep for multiplayer — name your clan now!</div></div>`;
+    h+=`<div class="modal-section"><input type="text" class="reset-input" id="alliance-name" placeholder="Alliance Name" maxlength="20" style="margin-bottom:4px"><input type="text" class="reset-input" id="alliance-tag" placeholder="Tag (3-4 letters)" maxlength="4"></div>`;
+    const icons=['🏰','⚔️','🛡️','🦅','🐉','💀','🔥','⭐','👑','🌙'];
+    h+=`<div class="modal-section"><div class="modal-section-title">Choose Icon</div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center" id="icon-pick">`;
+    icons.forEach(ic=>{h+=`<div style="font-size:24px;cursor:pointer;padding:4px;border:2px solid transparent;border-radius:8px" onclick="document.querySelectorAll('#icon-pick>div').forEach(d=>d.style.borderColor='transparent');this.style.borderColor='var(--accent-cyan)';this.dataset.sel='1'" data-icon="${ic}">${ic}</div>`});
+    h+=`</div></div>`;
+    h+=`<button class="btn-primary" onclick="createAlliance()">🏰 Create Alliance</button>`;
+  }
+  openModal(h);
+}
+
+function createAlliance(){
+  const name=(document.getElementById('alliance-name')?.value||'').trim();
+  const tag=(document.getElementById('alliance-tag')?.value||'').trim().toUpperCase();
+  if(!name||name.length<2){showToast('Name too short!','toast-red');return}
+  if(!tag||tag.length<2){showToast('Tag too short!','toast-red');return}
+  const selIcon=document.querySelector('#icon-pick [data-sel="1"]');
+  const icon=selIcon?selIcon.dataset.icon:'🏰';
+  GS.alliance={name,tag,icon,created:Date.now()};
+  showToast(`🏰 [${tag}] ${name} founded!`,'toast-gold');sfx('event');
+  spawnParticles(window.innerWidth/2,window.innerHeight/2,'cyan',15);
+  showAlliance();
+}
+
+// ═══════════════════════════════════════
+// PARTICLE EFFECTS
+// ═══════════════════════════════════════
+let particles=[];
+const partCanvas=()=>document.getElementById('particles-canvas');
+let partCtx=null;
+
+function initParticles(){
+  const c=partCanvas();if(!c)return;
+  c.width=window.innerWidth;c.height=window.innerHeight;
+  partCtx=c.getContext('2d');
+  window.addEventListener('resize',()=>{c.width=window.innerWidth;c.height=window.innerHeight});
+  requestAnimationFrame(renderParticles);
+}
+
+function spawnParticles(x,y,color,count){
+  const colors={gold:['#fbbf24','#f59e0b','#fde68a'],red:['#ef4444','#f87171','#fca5a5'],green:['#22c55e','#4ade80','#86efac'],purple:['#a855f7','#c084fc','#d8b4fe'],cyan:['#06b6d4','#22d3ee','#67e8f9'],blue:['#3a8bfd','#60a5fa','#93c5fd']};
+  const palette=colors[color]||colors.gold;
+  for(let i=0;i<(count||10);i++){
+    particles.push({x,y,vx:(Math.random()-0.5)*4,vy:(Math.random()-0.5)*4-2,life:1,decay:0.01+Math.random()*0.02,size:2+Math.random()*3,color:palette[Math.floor(Math.random()*palette.length)]});
+  }
+}
+
+function renderParticles(){
+  if(!partCtx)return;
+  partCtx.clearRect(0,0,partCanvas().width,partCanvas().height);
+  particles=particles.filter(p=>{
+    p.x+=p.vx;p.y+=p.vy;p.vy+=0.08;p.life-=p.decay;
+    if(p.life<=0)return false;
+    partCtx.globalAlpha=p.life;partCtx.fillStyle=p.color;
+    partCtx.beginPath();partCtx.arc(p.x,p.y,p.size,0,Math.PI*2);partCtx.fill();
+    return true;
+  });
+  partCtx.globalAlpha=1;
+  requestAnimationFrame(renderParticles);
+}
+
+// ═══════════════════════════════════════
+// TUTORIAL
+// ═══════════════════════════════════════
+const TUTORIAL_STEPS=[
+  {icon:'⚔️',title:'Welcome, Commander!',text:'Iron Command is a base-building strategy game. Build structures, train troops, research tech, and conquer the world map!'},
+  {icon:'🏗️',title:'Build Your Base',text:'Tap an empty plot on your base grid to build. Start with Gold Mines, Farms, and Iron Works to generate resources.'},
+  {icon:'🔬',title:'Research & Train',text:'Build a Research Lab to unlock technologies, and a Barracks to train troops. Use the ⚔️ Military menu at the bottom.'},
+  {icon:'🗺️',title:'Explore the World',text:'Tap 🌍 World to open the map. Occupy resource tiles for bonus income, and attack NPC bases for loot!'},
+  {icon:'💎',title:'Gems & Heroes',text:'Earn 💎 Gems from achievements, daily login, and events. Spend them on Heroes for powerful bonuses, or speed up timers!'},
+  {icon:'🏆',title:'Ready to Command!',text:'Complete quests, unlock achievements, and grow your empire. Good luck, Commander!'},
+];
+let tutStep=0;
+
+function startTutorial(){
+  tutStep=0;
+  showTutStep();
+}
+
+function showTutStep(){
+  if(tutStep>=TUTORIAL_STEPS.length){
+    document.getElementById('tutorial-overlay').classList.remove('active');
+    GS.tutorialDone=true;
+    showToast('Tutorial complete! 🎉');
+    addGems(5);
+    return;
+  }
+  const s=TUTORIAL_STEPS[tutStep];
+  const el=document.getElementById('tut-box');
+  el.innerHTML=`<div class="tut-icon">${s.icon}</div><div class="tut-title">${s.title}</div><div class="tut-text">${s.text}</div><button class="tut-btn" onclick="tutStep++;showTutStep();sfx('click')">${tutStep<TUTORIAL_STEPS.length-1?'Next →':'Let\'s Go! 🚀'}</button><div style="margin-top:8px;font-size:9px;color:var(--text-dim)">${tutStep+1}/${TUTORIAL_STEPS.length}</div>`;
+  document.getElementById('tutorial-overlay').classList.add('active');
+}
+
+// ═══════════════════════════════════════
+// SAVE / LOAD (Slot-based)
+// ═══════════════════════════════════════
+function getSaveData(){return{resources:GS.resources,buildings:GS.buildings,constructions:GS.constructions,hqLevel:GS.hqLevel,research:GS.research,activeResearch:GS.activeResearch,commander:GS.commander,quests:GS.quests,dailyLogin:GS.dailyLogin,troops:GS.troops,trainingQueue:GS.trainingQueue,wounded:GS.wounded,campaignCleared:GS.campaignCleared,battleReports:GS.battleReports,worldMap:GS.worldMap,mapNPCs:GS.mapNPCs,occupiedTiles:GS.occupiedTiles,marches:GS.marches,fogRevealed:GS.fogRevealed,mapSeed:GS.mapSeed,achievements:GS.achievements||{},soundOn:GS.soundOn,gems:GS.gems,heroes:GS.heroes,equippedHero:GS.equippedHero,alliance:GS.alliance,activeEvent:GS.activeEvent,raidDamage:GS.raidDamage,tutorialDone:GS.tutorialDone,stats:GS.stats,nextBuildingId,nextMarchId,savedAt:Date.now(),version:6}}
+
+function saveGame(){
+  if(!activeSlot)return;
+  try{
+    // Auto-backup: copy current save before overwriting
+    const prev=localStorage.getItem(slotKey(activeSlot));
+    if(prev)localStorage.setItem(backupKey(activeSlot),prev);
+    localStorage.setItem(slotKey(activeSlot),JSON.stringify(getSaveData()));
+    showToast('Saved!');sfx('tap');
+  }catch(e){showToast('Save failed!','toast-red')}
+}
+function autoSave(){if(!activeSlot)return;try{const prev=localStorage.getItem(slotKey(activeSlot));if(prev)localStorage.setItem(backupKey(activeSlot),prev);localStorage.setItem(slotKey(activeSlot),JSON.stringify(getSaveData()))}catch(e){}}
+
+function loadGame(){
+  try{
+    let raw=localStorage.getItem(slotKey(activeSlot));
+    // Migration: check old single-key saves and put into slot 1
+    if(!raw&&activeSlot===1){
+      for(const oldKey of['ironcommand_save_v4','ironcommand_save_v3','ironcommand_save_v2','ironcommand_save_v1']){
+        raw=localStorage.getItem(oldKey);if(raw)break;
+      }
+      if(raw){localStorage.setItem(slotKey(1),raw);showToast('Old save migrated to Slot 1!')}
+    }
+    if(!raw){initNewGame();return}
+    const s=JSON.parse(raw);
+    GS.resources=s.resources||{...CONFIG.STARTER_RESOURCES};GS.buildings=s.buildings||[];GS.constructions=s.constructions||[];GS.hqLevel=s.hqLevel||1;GS.research=s.research||{};GS.activeResearch=s.activeResearch||null;GS.commander=s.commander||{level:1,xp:0,name:'Commander'};GS.quests=s.quests||{};GS.dailyLogin=s.dailyLogin||{streak:0,lastClaim:null,history:[]};GS.troops=s.troops||{infantry:0,vehicle:0,artillery:0,air:0};GS.trainingQueue=s.trainingQueue||[];GS.wounded=s.wounded||{infantry:0,vehicle:0,artillery:0,air:0};GS.campaignCleared=s.campaignCleared||[];GS.battleReports=s.battleReports||[];
+    GS.worldMap=s.worldMap;GS.mapNPCs=s.mapNPCs||[];GS.occupiedTiles=s.occupiedTiles||[];GS.marches=s.marches||[];GS.fogRevealed=s.fogRevealed||[];GS.mapSeed=s.mapSeed||0;
+    GS.achievements=s.achievements||{};GS.soundOn=s.soundOn!==undefined?s.soundOn:true;
+    GS.gems=s.gems||0;GS.heroes=s.heroes||{};GS.equippedHero=s.equippedHero||null;
+    GS.alliance=s.alliance||{name:null,tag:null,icon:'🏰',created:null};
+    GS.activeEvent=s.activeEvent||null;GS.raidDamage=s.raidDamage||0;GS.tutorialDone=s.tutorialDone||false;
+    if(!GS.worldMap)generateWorldMap();
+    GS.stats={...GS.stats,...s.stats};GS.stats.sessionStart=Date.now();nextBuildingId=s.nextBuildingId||1;nextMarchId=s.nextMarchId||1;processOffline(s.savedAt);
+  }catch(e){initNewGame()}
+}
+
+function restoreBackup(){
+  if(!activeSlot)return;
+  const bak=localStorage.getItem(backupKey(activeSlot));
+  if(!bak){showToast('No backup found!','toast-red');return}
+  if(!confirm('Restore previous save? Current progress since last save will be lost.'))return;
+  localStorage.setItem(slotKey(activeSlot),bak);
+  location.reload();
+}
+
+function exportSave(){
+  const data=JSON.stringify(getSaveData());
+  const b64=btoa(unescape(encodeURIComponent(data)));
+  let h=`<div class="modal-header"><span class="modal-title">📤 Export Save</span><div class="modal-close" onclick="closeModal()">✕</div></div>`;
+  h+=`<p style="font-size:11px;color:var(--text-secondary);margin-bottom:6px">Copy this code and save it somewhere safe. You can paste it into Import on any device.</p>`;
+  h+=`<textarea class="export-area" id="export-text" readonly onclick="this.select()">${b64}</textarea>`;
+  h+=`<button class="btn-primary" onclick="document.getElementById('export-text').select();document.execCommand('copy');showToast('Copied!')">📋 Copy to Clipboard</button>`;
+  openModal(h);
+}
+
+function showImport(){
+  let h=`<div class="modal-header"><span class="modal-title">📥 Import Save</span><div class="modal-close" onclick="closeModal()">✕</div></div>`;
+  h+=`<p style="font-size:11px;color:var(--text-secondary);margin-bottom:6px">Paste an export code below. This will <b>overwrite</b> the current save slot.</p>`;
+  h+=`<textarea class="export-area" id="import-text" placeholder="Paste export code here..."></textarea>`;
+  h+=`<button class="btn-red" onclick="doImport()">📥 Import & Load</button>`;
+  openModal(h);
+}
+
+function doImport(){
+  try{
+    const b64=document.getElementById('import-text').value.trim();
+    if(!b64){showToast('Paste a code first!','toast-red');return}
+    const json=decodeURIComponent(escape(atob(b64)));
+    const data=JSON.parse(json);
+    if(!data.resources||!data.buildings){throw new Error('invalid')}
+    localStorage.setItem(slotKey(activeSlot),JSON.stringify(data));
+    showToast('Imported! Reloading...');
+    setTimeout(()=>location.reload(),1000);
+  }catch(e){showToast('Invalid code!','toast-red')}
+}
+
+function processOffline(savedAt){
+  const now=Date.now();
+  GS.constructions=GS.constructions.filter(c=>{if(now>=c.endTime){const b=GS.buildings.find(x=>x.id===c.buildingId);if(b){b.level=c.targetLevel;if(b.type==='command_center')GS.hqLevel=b.level}return false}return true});
+  if(GS.activeResearch&&now>=GS.activeResearch.endTime){GS.research[GS.activeResearch.techId]=GS.activeResearch.targetLevel;GS.stats.researchDone++;GS.activeResearch=null}
+  // Complete offline training
+  GS.trainingQueue=GS.trainingQueue.filter(t=>{if(now>=t.endTime){GS.troops[t.type]++;GS.stats.troopsTrained++;return false}return true});
+  // Complete offline marches
+  processMarchArrivals();
+  if(savedAt){const offSec=Math.min((now-savedAt)/1000,14400);if(offSec>5){const rates=getResourceRates();GS.resources.gold=Math.min(GS.resources.gold+rates.gold*offSec,GS.storage.gold);GS.resources.food=Math.min(GS.resources.food+rates.food*offSec,GS.storage.food);GS.resources.iron=Math.min(GS.resources.iron+rates.iron*offSec,GS.storage.iron);showToast(`Welcome back! (${fT(Math.floor(offSec))} offline)`)}}
+}
+function initNewGame(){GS.resources={...CONFIG.STARTER_RESOURCES};GS.hqLevel=1;GS.buildings=[{id:nextBuildingId++,type:'command_center',level:1,slotIndex:5,isHQ:true}];GS.constructions=[];GS.research={};GS.activeResearch=null;GS.commander={level:1,xp:0,name:'Commander'};GS.quests={};GS.dailyLogin={streak:0,lastClaim:null,history:[]};GS.troops={infantry:0,vehicle:0,artillery:0,air:0};GS.trainingQueue=[];GS.wounded={infantry:0,vehicle:0,artillery:0,air:0};GS.campaignCleared=[];GS.battleReports=[];GS.occupiedTiles=[];GS.marches=[];GS.achievements={};GS.soundOn=true;GS.gems=10;GS.heroes={};GS.equippedHero=null;GS.alliance={name:null,tag:null,icon:'🏰',created:null};GS.activeEvent=null;GS.raidDamage=0;GS.tutorialDone=false;generateWorldMap()}
+
+// ═══════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════
+function bCost(type,lv){const d=CONFIG.BUILDINGS[type],r=1-(GS.research['eco_surplus']||0)*.05;return{gold:Math.floor(d.baseCost.gold*Math.pow(d.costMul,lv-1)*r),food:Math.floor(d.baseCost.food*Math.pow(d.costMul,lv-1)*r),iron:Math.floor(d.baseCost.iron*Math.pow(d.costMul,lv-1)*r)}}
+function bTime(type,lv){return Math.max(3,Math.floor(CONFIG.BUILDINGS[type].baseTime*Math.pow(CONFIG.BUILDINGS[type].timeMul,lv-1)*(1-getHeroBonus('buildSpeed'))))}
+function canAfford(c){return GS.resources.gold>=(c.gold||0)&&GS.resources.food>=(c.food||0)&&GS.resources.iron>=(c.iron||0)}
+function spendResources(c){GS.resources.gold-=(c.gold||0);GS.resources.food-=(c.food||0);GS.resources.iron-=(c.iron||0)}
+function countB(type){return GS.buildings.filter(b=>b.type===type).length}
+function isConstr(id){return GS.constructions.some(c=>c.buildingId===id)}
+function getC(id){return GS.constructions.find(c=>c.buildingId===id)}
+function tRem(c){return Math.max(0,Math.ceil((c.endTime-Date.now())/1000))}
+function hasLab(){return GS.buildings.some(b=>b.type==='research_lab'&&b.level>0)}
+function hasBarracks(){return GS.buildings.some(b=>b.type==='barracks'&&b.level>0)}
+function getLabLevel(){const l=GS.buildings.find(b=>b.type==='research_lab');return l?l.level:0}
+function findTech(tid){for(const br of Object.values(CONFIG.TECH_TREE)){const t=br.techs.find(x=>x.id===tid);if(t)return t}return null}
+function techCost(t,lv){const r=1-(GS.research['eco_surplus']||0)*.05;return{gold:Math.floor(t.baseCost.gold*Math.pow(t.costMul,lv-1)*r),food:Math.floor(t.baseCost.food*Math.pow(t.costMul,lv-1)*r),iron:Math.floor(t.baseCost.iron*Math.pow(t.costMul,lv-1)*r)}}
+function techTime(t,lv){const s=1-getLabLevel()*.05;return Math.max(5,Math.floor(t.baseTime*Math.pow(t.timeMul,lv-1)*s*(1-getHeroBonus('researchSpeed'))))}
+function isTechUnlocked(t){if(!t.requires)return true;const[rid,rlv]=t.requires.split(':');return(GS.research[rid]||0)>=parseInt(rlv)}
+function xpForLevel(lv){return Math.floor(CONFIG.XP_PER_LEVEL*Math.pow(CONFIG.XP_SCALING,lv-1))}
+function addXP(amt){GS.commander.xp+=amt;let need=xpForLevel(GS.commander.level);while(GS.commander.xp>=need){GS.commander.xp-=need;GS.commander.level++;need=xpForLevel(GS.commander.level);sfx('levelup');spawnParticles(window.innerWidth/2,60,'blue',12);showToast(`Commander Lv.${GS.commander.level}!`,'toast-gold')}}
+function costHtml(c){return`${c.gold?`<span class="cost-item ${GS.resources.gold>=c.gold?'affordable':'expensive'}">💰${fN(c.gold)}</span>`:''}${c.food?`<span class="cost-item ${GS.resources.food>=c.food?'affordable':'expensive'}">🌾${fN(c.food)}</span>`:''}${c.iron?`<span class="cost-item ${GS.resources.iron>=c.iron?'affordable':'expensive'}">⛏️${fN(c.iron)}</span>`:''}`}
+function sr(label,val,color){return`<div class="stat-row"><span class="stat-label">${label}</span><span class="stat-value"${color?` style="color:${color}"`:''}">${val}</span></div>`}
+function mk(tag,cls){const e=document.createElement(tag);e.className=cls;return e}
+function fN(n){if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return Math.floor(n).toString()}
+function fT(s){if(s<60)return`${s}s`;if(s<3600)return`${Math.floor(s/60)}m ${s%60}s`;return`${Math.floor(s/3600)}h ${Math.floor((s%3600)/60)}m`}
+function showToast(msg,cls=''){const c=document.getElementById('toast-container'),t=document.createElement('div');t.className='toast '+cls;t.textContent=msg;c.appendChild(t);setTimeout(()=>t.remove(),2500)}
+
+init();
+</script>
+</body>
+</html>
