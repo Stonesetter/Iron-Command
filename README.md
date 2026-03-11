@@ -1,7 +1,9 @@
 # ⚔️ Iron Command
-![Menu](MainManuSS1.png)
-![Game "Base" Tile Menu](GameBaseSS1.png)
-![World Map](WorldMapSS1.png)
+<p align="center">
+  <a href="MainManuSS1.png"><img src="MainManuSS1.png" width="200"></a>
+  <a href="GameBaseSS1.png"><img src="GameBaseSS1.png" width="300"></a>
+  <a href="WorldMapSS1.png"><img src="WorldMapSS1.png" width="300"></a>
+</p>
 
 **A mobile-first base-building strategy game built entirely in a single HTML file.**
 
